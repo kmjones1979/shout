@@ -26,6 +26,7 @@ type XMTPContextType = {
   getMessages: (peerAddress: string) => Promise<unknown[]>;
   streamMessages: (peerAddress: string, onMessage: (message: unknown) => void) => Promise<unknown>;
   canMessage: (address: string) => Promise<boolean>;
+  canMessageBatch: (addresses: string[]) => Promise<Record<string, boolean>>;
   markAsRead: (peerAddress: string) => void;
   onNewMessage: (callback: NewMessageCallback) => () => void;
   close: () => void;
@@ -89,9 +90,7 @@ export function XMTPProvider({ children, userAddress }: { children: ReactNode; u
           identifierKind: "Ethereum" as const,
         }),
         signMessage: async (message: string) => {
-          const signature = await walletClient.signMessage({
-            message,
-          });
+          const signature = await walletClient.signMessage({ message });
           // Convert hex string to Uint8Array
           const bytes = new Uint8Array(
             signature
@@ -104,9 +103,26 @@ export function XMTPProvider({ children, userAddress }: { children: ReactNode; u
       };
 
       // Create XMTP client - using 'dev' environment for testing
-      const client = await XMTPClient.create(signer, {
-        env: "dev",
-      });
+      let client;
+      try {
+        client = await XMTPClient.create(signer, {
+          env: "dev",
+        });
+      } catch (createErr: unknown) {
+        // Check if it's an installation limit error
+        const errMsg = createErr instanceof Error ? createErr.message : String(createErr);
+        if (errMsg.toLowerCase().includes("installation")) {
+          console.log("[XMTP] Installation limit hit, auto-revoking and retrying...");
+          // Retry with revokeAllOtherInstallations
+          client = await XMTPClient.create(signer, {
+            env: "dev",
+            revokeAllOtherInstallations: true,
+          });
+          console.log("[XMTP] Successfully created client after revoking old installations");
+        } else {
+          throw createErr;
+        }
+      }
 
       clientRef.current = client;
       
@@ -233,6 +249,35 @@ export function XMTPProvider({ children, userAddress }: { children: ReactNode; u
     } catch (err) {
       console.error("[XMTP] canMessage error:", err);
       return false;
+    }
+  }, []);
+
+  // Check if multiple addresses can receive XMTP messages (batch)
+  const canMessageBatch = useCallback(async (addresses: string[]): Promise<Record<string, boolean>> => {
+    if (!XMTPClient || addresses.length === 0) {
+      return {};
+    }
+
+    try {
+      console.log("[XMTP] Batch checking canMessage for:", addresses);
+      
+      const identifiers = addresses.map(addr => ({
+        identifier: addr.toLowerCase(),
+        identifierKind: "Ethereum" as const,
+      }));
+      
+      const result = await XMTPClient.canMessage(identifiers);
+      
+      const reachability: Record<string, boolean> = {};
+      for (const addr of addresses) {
+        reachability[addr.toLowerCase()] = !!result.get(addr.toLowerCase());
+      }
+      
+      console.log("[XMTP] Batch canMessage results:", reachability);
+      return reachability;
+    } catch (err) {
+      console.error("[XMTP] canMessageBatch error:", err);
+      return {};
     }
   }, []);
 
@@ -592,6 +637,7 @@ export function XMTPProvider({ children, userAddress }: { children: ReactNode; u
         getMessages,
         streamMessages,
         canMessage,
+        canMessageBatch,
         markAsRead,
         onNewMessage,
         close,

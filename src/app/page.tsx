@@ -46,7 +46,13 @@ export default function Home() {
 
     // Show dashboard if authenticated
     if (isAuthenticated && userAddress) {
-        return <Dashboard userAddress={userAddress} onLogout={handleLogout} />;
+        return (
+            <Dashboard 
+                userAddress={userAddress} 
+                onLogout={handleLogout}
+                isPasskeyUser={isPasskeyAuthenticated}
+            />
+        );
     }
 
     return (

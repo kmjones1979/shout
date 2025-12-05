@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useENS, type ENSResolution } from "@/hooks/useENS";
+import { useUsername } from "@/hooks/useUsername";
 
 type AddFriendModalProps = {
   isOpen: boolean;
@@ -22,22 +23,45 @@ export function AddFriendModal({
   const [input, setInput] = useState("");
   const [nickname, setNickname] = useState("");
   const [resolved, setResolved] = useState<ENSResolution | null>(null);
+  const [resolvedFromUsername, setResolvedFromUsername] = useState(false);
   const { resolveAddressOrENS, isResolving, error: resolveError } = useENS();
+  const { lookupUsername, searchUsernames } = useUsername(null);
 
-  // Debounced resolution as user types
+  // Debounced resolution as user types - check username first, then ENS/address
   useEffect(() => {
     if (!input.trim() || input.trim().length < 3) {
       setResolved(null);
+      setResolvedFromUsername(false);
       return;
     }
 
     const timer = setTimeout(async () => {
-      const result = await resolveAddressOrENS(input.trim());
+      const trimmedInput = input.trim().toLowerCase();
+      
+      // First, try to lookup as a Shout username (if it doesn't look like an address or ENS)
+      if (!trimmedInput.startsWith("0x") && !trimmedInput.includes(".")) {
+        const usernameResult = await lookupUsername(trimmedInput);
+        if (usernameResult) {
+          // Found a username - now resolve the address for ENS/avatar
+          const ensResult = await resolveAddressOrENS(usernameResult.wallet_address);
+          setResolved({
+            address: usernameResult.wallet_address as `0x${string}`,
+            ensName: ensResult?.ensName || null,
+            avatar: ensResult?.avatar || null,
+          });
+          setResolvedFromUsername(true);
+          return;
+        }
+      }
+      
+      // Fall back to ENS/address resolution
+      const result = await resolveAddressOrENS(trimmedInput);
       setResolved(result);
+      setResolvedFromUsername(false);
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timer);
-  }, [input, resolveAddressOrENS]);
+  }, [input, resolveAddressOrENS, lookupUsername]);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -45,6 +69,7 @@ export function AddFriendModal({
       setInput("");
       setNickname("");
       setResolved(null);
+      setResolvedFromUsername(false);
     }
   }, [isOpen]);
 
@@ -112,14 +137,14 @@ export function AddFriendModal({
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-2">
-                    Wallet Address or ENS Name
+                    Username, Address, or ENS
                   </label>
                   <div className="relative">
                     <input
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      placeholder="0x... or vitalik.eth"
+                      placeholder="kevin, 0x..., or vitalik.eth"
                       className="w-full py-3 px-4 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all"
                     />
                     {isResolving && (
@@ -191,7 +216,7 @@ export function AddFriendModal({
                                 />
                               </svg>
                               <span className="text-emerald-400 text-sm font-medium">
-                                Resolved
+                                {resolvedFromUsername ? "Found @" + input.trim().toLowerCase() : "Resolved"}
                               </span>
                             </div>
                             {resolved.ensName && (

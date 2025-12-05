@@ -15,7 +15,9 @@ import { AddFriendModal } from "./AddFriendModal";
 import { VoiceCallUI } from "./VoiceCallUI";
 import { IncomingCallModal } from "./IncomingCallModal";
 import { ChatModal } from "./ChatModal";
+import { UsernameClaimModal } from "./UsernameClaimModal";
 import { XMTPProvider, useXMTPContext } from "@/context/XMTPProvider";
+import { useUsername } from "@/hooks/useUsername";
 import { isAgoraConfigured } from "@/config/agora";
 
 type DashboardProps = {
@@ -30,12 +32,14 @@ type FriendsListFriend = {
   ensName: string | null;
   avatar: string | null;
   nickname: string | null;
+  shoutUsername: string | null;
   addedAt: string;
   isOnline?: boolean;
 };
 
-function DashboardContent({ userAddress, onLogout }: DashboardProps) {
+function DashboardContent({ userAddress, onLogout, isPasskeyUser }: DashboardProps & { isPasskeyUser?: boolean }) {
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [isUsernameModalOpen, setIsUsernameModalOpen] = useState(false);
   const [currentCallFriend, setCurrentCallFriend] = useState<FriendsListFriend | null>(null);
   const [chatFriend, setChatFriend] = useState<FriendsListFriend | null>(null);
   const [userENS, setUserENS] = useState<{ ensName: string | null; avatar: string | null }>({
@@ -43,6 +47,9 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
     avatar: null,
   });
   const xmtpAutoInitAttempted = useRef(false);
+
+  // Username hook
+  const { username: shoutUsername, claimUsername } = useUsername(userAddress);
 
   const { resolveAddressOrENS } = useENS();
   
@@ -113,13 +120,16 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
     error: xmtpError,
     unreadCounts,
     initialize: initializeXMTP,
-    revokeAllInstallations,
     markAsRead,
     onNewMessage,
+    canMessageBatch,
   } = useXMTPContext();
   
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; sender: string } | null>(null);
+  
+  // Track which friends can receive XMTP messages
+  const [friendsXMTPStatus, setFriendsXMTPStatus] = useState<Record<string, boolean>>({});
 
   // Auto-initialize XMTP after a short delay
   useEffect(() => {
@@ -172,8 +182,24 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
     ensName: f.ensName || null,
     avatar: f.avatar || null,
     nickname: f.nickname,
+    shoutUsername: f.shoutUsername || null,
     addedAt: f.created_at,
   }));
+
+  // Check which friends can receive XMTP messages
+  useEffect(() => {
+    if (isPasskeyUser || friends.length === 0) {
+      return;
+    }
+    
+    const checkFriendsXMTP = async () => {
+      const addresses = friends.map(f => f.friend_address);
+      const status = await canMessageBatch(addresses);
+      setFriendsXMTPStatus(status);
+    };
+    
+    checkFriendsXMTP();
+  }, [friends, isPasskeyUser, canMessageBatch]);
 
   // Find caller info from friends list
   const incomingCallFriend = incomingCall
@@ -297,9 +323,26 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
                   <h1 className="text-white font-bold">
                     {userENS.ensName || "Shout"}
                   </h1>
-                  <p className="text-zinc-500 text-sm font-mono">
-                    {formatAddress(userAddress)}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-zinc-500 text-sm font-mono">
+                      {formatAddress(userAddress)}
+                    </p>
+                    {shoutUsername ? (
+                      <button
+                        onClick={() => setIsUsernameModalOpen(true)}
+                        className="text-violet-400 text-sm hover:text-violet-300 transition-colors"
+                      >
+                        @{shoutUsername}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setIsUsernameModalOpen(true)}
+                        className="text-zinc-500 text-xs hover:text-violet-400 transition-colors"
+                      >
+                        + claim name
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -467,8 +510,8 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
             </motion.div>
           )}
 
-          {/* XMTP Status Banner */}
-          {!isXMTPInitialized && (
+          {/* XMTP Status Banner - hidden for passkey users */}
+          {!isXMTPInitialized && !isPasskeyUser && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -499,50 +542,29 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* Reset button - always visible for installation issues */}
-                  <button
-                    onClick={revokeAllInstallations}
-                    disabled={isXMTPInitializing}
-                    className="py-2 px-4 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {isXMTPInitializing ? (
-                      <>
-                        <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Resetting...
-                      </>
-                    ) : (
-                      "Reset & Enable"
-                    )}
-                  </button>
-                  {/* Enable Chat button */}
-                  <button
-                    onClick={initializeXMTP}
-                    disabled={isXMTPInitializing}
-                    className="py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {isXMTPInitializing ? (
-                      <>
-                        <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Signing...
-                      </>
-                    ) : (
-                      "Enable Chat"
-                    )}
-                  </button>
-                </div>
+                <button
+                  onClick={initializeXMTP}
+                  disabled={isXMTPInitializing}
+                  className="py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isXMTPInitializing ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Enabling...
+                    </>
+                  ) : (
+                    "Enable Chat"
+                  )}
+                </button>
               </div>
             </motion.div>
           )}
 
-          {/* XMTP Enabled Success */}
-          {isXMTPInitialized && (
+          {/* XMTP Enabled Success - hidden for passkey users */}
+          {isXMTPInitialized && !isPasskeyUser && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -622,10 +644,12 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
               <FriendsList
                 friends={friendsListData}
                 onCall={handleCall}
-                onChat={handleChat}
+                onChat={isPasskeyUser ? undefined : handleChat}
                 onRemove={handleRemoveFriend}
                 isCallActive={callState !== "idle"}
-                unreadCounts={unreadCounts}
+                unreadCounts={isPasskeyUser ? {} : unreadCounts}
+                hideChat={isPasskeyUser}
+                friendsXMTPStatus={friendsXMTPStatus}
               />
             </div>
           </div>
@@ -682,6 +706,7 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
               ensName: currentCallFriend.ensName,
               avatar: currentCallFriend.avatar,
               nickname: currentCallFriend.nickname,
+              shoutUsername: currentCallFriend.shoutUsername,
               addedAt: currentCallFriend.addedAt,
             }}
             callState={callState}
@@ -713,6 +738,15 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
         peerAddress={chatFriend?.address || ("0x" as Address)}
         peerName={chatFriend?.ensName || chatFriend?.nickname}
         peerAvatar={chatFriend?.avatar}
+      />
+
+      {/* Username Claim Modal */}
+      <UsernameClaimModal
+        isOpen={isUsernameModalOpen}
+        onClose={() => setIsUsernameModalOpen(false)}
+        userAddress={userAddress}
+        currentUsername={shoutUsername}
+        onSuccess={() => {}}
       />
 
       {/* Toast Notification for New Messages */}
@@ -779,10 +813,10 @@ function DashboardContent({ userAddress, onLogout }: DashboardProps) {
 }
 
 // Wrapper that provides XMTP context
-export function Dashboard({ userAddress, onLogout }: DashboardProps) {
+export function Dashboard({ userAddress, onLogout, isPasskeyUser }: DashboardProps & { isPasskeyUser?: boolean }) {
   return (
     <XMTPProvider userAddress={userAddress}>
-      <DashboardContent userAddress={userAddress} onLogout={onLogout} />
+      <DashboardContent userAddress={userAddress} onLogout={onLogout} isPasskeyUser={isPasskeyUser} />
     </XMTPProvider>
   );
 }

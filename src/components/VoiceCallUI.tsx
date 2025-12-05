@@ -26,7 +26,7 @@ export function VoiceCallUI({
   if (!friend || callState === "idle") return null;
 
   const getDisplayName = (friend: Friend) => {
-    return friend.nickname || friend.ensName || `${friend.address.slice(0, 6)}...${friend.address.slice(-4)}`;
+    return friend.nickname || (friend.shoutUsername ? `@${friend.shoutUsername}` : null) || friend.ensName || `${friend.address.slice(0, 6)}...${friend.address.slice(-4)}`;
   };
 
   const getStatusText = () => {

@@ -10,6 +10,7 @@ export type Friend = {
   ensName: string | null;
   avatar: string | null;
   nickname: string | null;
+  shoutUsername: string | null;
   addedAt: string;
   isOnline?: boolean;
 };
@@ -17,10 +18,12 @@ export type Friend = {
 type FriendsListProps = {
   friends: Friend[];
   onCall: (friend: Friend) => void;
-  onChat: (friend: Friend) => void;
+  onChat?: (friend: Friend) => void;
   onRemove: (friendId: string) => void;
   isCallActive: boolean;
   unreadCounts?: Record<string, number>;
+  hideChat?: boolean;
+  friendsXMTPStatus?: Record<string, boolean>; // address -> can receive XMTP
 };
 
 export function FriendsList({
@@ -30,6 +33,8 @@ export function FriendsList({
   onRemove,
   isCallActive,
   unreadCounts = {},
+  hideChat = false,
+  friendsXMTPStatus = {},
 }: FriendsListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -38,17 +43,28 @@ export function FriendsList({
   };
 
   const getDisplayName = (friend: Friend) => {
-    return friend.nickname || friend.ensName || formatAddress(friend.address);
+    // Priority: nickname > shoutUsername > ensName > address
+    return friend.nickname || (friend.shoutUsername ? `@${friend.shoutUsername}` : null) || friend.ensName || formatAddress(friend.address);
   };
 
   const getSecondaryText = (friend: Friend) => {
-    if (friend.nickname && friend.ensName) {
-      return friend.ensName;
+    const displayName = getDisplayName(friend);
+    const parts: string[] = [];
+    
+    // Show shoutUsername if not already the display name
+    if (friend.shoutUsername && !displayName.includes(friend.shoutUsername)) {
+      parts.push(`@${friend.shoutUsername}`);
     }
-    if (friend.nickname || friend.ensName) {
-      return formatAddress(friend.address);
+    // Show ENS if not already the display name
+    if (friend.ensName && !displayName.includes(friend.ensName)) {
+      parts.push(friend.ensName);
     }
-    return null;
+    // Always show truncated address if we have other names
+    if (parts.length > 0 || friend.nickname || friend.shoutUsername || friend.ensName) {
+      parts.push(formatAddress(friend.address));
+    }
+    
+    return parts.length > 0 ? parts.join(" · ") : null;
   };
 
   if (friends.length === 0) {
@@ -125,40 +141,51 @@ export function FriendsList({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                  {/* Chat Button with Unread Badge */}
-                  <div className="relative">
-                    <button
-                      onClick={() => onChat(friend)}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                        unreadCounts[friend.address.toLowerCase()]
-                          ? "bg-blue-500 hover:bg-blue-600 text-white"
-                          : "bg-blue-500/10 hover:bg-blue-500/20 text-blue-400"
-                      }`}
-                      title="Chat via XMTP"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                  {/* Chat Button with Unread Badge - hidden for passkey users or friends without XMTP */}
+                  {!hideChat && onChat && friendsXMTPStatus[friend.address.toLowerCase()] !== false && (
+                    <div className="relative">
+                      <button
+                        onClick={() => onChat(friend)}
+                        disabled={friendsXMTPStatus[friend.address.toLowerCase()] === undefined}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                          friendsXMTPStatus[friend.address.toLowerCase()] === undefined
+                            ? "bg-zinc-700/50 text-zinc-500 cursor-not-allowed"
+                            : unreadCounts[friend.address.toLowerCase()]
+                              ? "bg-blue-500 hover:bg-blue-600 text-white"
+                              : "bg-blue-500/10 hover:bg-blue-500/20 text-blue-400"
+                        }`}
+                        title={
+                          friendsXMTPStatus[friend.address.toLowerCase()] === undefined
+                            ? "Checking XMTP status..."
+                            : friendsXMTPStatus[friend.address.toLowerCase()] === false
+                              ? "Friend hasn't enabled XMTP"
+                              : "Chat via XMTP"
+                        }
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                        />
-                      </svg>
-                    </button>
-                    {/* Unread Badge */}
-                    {unreadCounts[friend.address.toLowerCase()] > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
-                        {unreadCounts[friend.address.toLowerCase()] > 9
-                          ? "9+"
-                          : unreadCounts[friend.address.toLowerCase()]}
-                      </span>
-                    )}
-                  </div>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                          />
+                        </svg>
+                      </button>
+                      {/* Unread Badge */}
+                      {unreadCounts[friend.address.toLowerCase()] > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">
+                          {unreadCounts[friend.address.toLowerCase()] > 9
+                            ? "9+"
+                            : unreadCounts[friend.address.toLowerCase()]}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Call Button */}
                   <button

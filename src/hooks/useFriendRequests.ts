@@ -27,6 +27,7 @@ export type Friend = {
   // Resolved data
   ensName?: string | null;
   avatar?: string | null;
+  shoutUsername?: string | null;
 };
 
 export function useFriendRequests(userAddress: Address | null) {
@@ -77,14 +78,27 @@ export function useFriendRequests(userAddress: Address | null) {
         })
       );
 
-      // Resolve ENS for friends
+      // Resolve ENS and Shout username for friends
       const resolvedFriends = await Promise.all(
         (friendsData || []).map(async (friend) => {
           const resolved = await resolveAddressOrENS(friend.friend_address);
+          
+          // Also lookup Shout username
+          let shoutUsername: string | null = null;
+          if (supabase) {
+            const { data: usernameData } = await supabase
+              .from("shout_usernames")
+              .select("username")
+              .eq("wallet_address", friend.friend_address.toLowerCase())
+              .maybeSingle();
+            shoutUsername = usernameData?.username || null;
+          }
+          
           return {
             ...friend,
             ensName: resolved?.ensName,
             avatar: resolved?.avatar,
+            shoutUsername,
           };
         })
       );
