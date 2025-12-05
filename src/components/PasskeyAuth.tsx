@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { usePasskey } from "@/hooks/usePasskey";
+import { usePasskeyContext } from "@/context/PasskeyProvider";
 
 export function PasskeyAuth() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -12,11 +12,12 @@ export function PasskeyAuth() {
     isAuthenticated,
     smartAccountAddress,
     error,
+    hasStoredCredential,
     register,
     login,
     logout,
     clearError,
-  } = usePasskey();
+  } = usePasskeyContext();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +66,7 @@ export function PasskeyAuth() {
 
           <div className="bg-black/30 rounded-xl p-4 mb-4">
             <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">
-              Smart Account
+              Your Address
             </p>
             <p className="text-white font-mono text-sm">
               {formatAddress(smartAccountAddress)}
@@ -122,6 +123,13 @@ export function PasskeyAuth() {
           </button>
         </div>
 
+        {/* Show hint if no credential stored */}
+        {mode === "login" && !hasStoredCredential && (
+          <p className="text-amber-400/80 text-xs text-center">
+            No passkey found. Switch to Register to create one.
+          </p>
+        )}
+
         <AnimatePresence mode="wait">
           {mode === "register" && (
             <motion.div
@@ -157,7 +165,7 @@ export function PasskeyAuth() {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || (mode === "login" && !hasStoredCredential)}
           className="w-full relative overflow-hidden group py-4 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold transition-all hover:shadow-xl hover:shadow-violet-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="relative z-10 flex items-center justify-center gap-2">
@@ -213,10 +221,9 @@ export function PasskeyAuth() {
         <p className="text-center text-zinc-500 text-xs">
           {mode === "login"
             ? "Use your device's biometric authentication"
-            : "Creates a secure smart account on Base Sepolia"}
+            : "Creates a secure account linked to your device"}
         </p>
       </form>
     </motion.div>
   );
 }
-

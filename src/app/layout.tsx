@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Web3Provider } from "@/context/Web3Provider";
+import { PasskeyProvider } from "@/context/PasskeyProvider";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -16,9 +17,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Akash Auth | Passkey & Wallet Login",
+  title: "Shout | Voice Calls for Web3",
   description:
-    "Secure authentication with passkeys and wallet connection. Powered by Pimlico and WalletConnect.",
+    "Voice calls for Web3. Connect with friends using passkeys or wallets and make voice calls.",
 };
 
 export default function RootLayout({
@@ -29,7 +30,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
-        <Web3Provider>{children}</Web3Provider>
+        <Web3Provider>
+          <PasskeyProvider>{children}</PasskeyProvider>
+        </Web3Provider>
       </body>
     </html>
   );

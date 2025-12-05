@@ -1,10 +1,54 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
+import { useAccount, useDisconnect } from "wagmi";
+import { type Address } from "viem";
 import { PasskeyAuth } from "@/components/PasskeyAuth";
 import { WalletConnect } from "@/components/WalletConnect";
+import { Dashboard } from "@/components/Dashboard";
+import { usePasskeyContext } from "@/context/PasskeyProvider";
 
 export default function Home() {
+    const { address: walletAddress, isConnected: isWalletConnected } =
+        useAccount();
+    const { disconnect: walletDisconnect } = useDisconnect();
+    const {
+        isAuthenticated: isPasskeyAuthenticated,
+        smartAccountAddress,
+        logout: passkeyLogout,
+    } = usePasskeyContext();
+    const [mounted, setMounted] = useState(false);
+
+    // Handle hydration
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Determine the active user address
+    const userAddress: Address | null = mounted
+        ? smartAccountAddress || walletAddress || null
+        : null;
+
+    const isAuthenticated =
+        mounted && (isPasskeyAuthenticated || isWalletConnected);
+
+    const handleLogout = () => {
+        // Disconnect wallet if connected
+        if (isWalletConnected) {
+            walletDisconnect();
+        }
+        // Logout passkey if authenticated
+        if (isPasskeyAuthenticated) {
+            passkeyLogout();
+        }
+    };
+
+    // Show dashboard if authenticated
+    if (isAuthenticated && userAddress) {
+        return <Dashboard userAddress={userAddress} onLogout={handleLogout} />;
+    }
+
     return (
         <main className="relative min-h-screen gradient-bg overflow-hidden">
             {/* Background effects */}
@@ -55,7 +99,7 @@ export default function Home() {
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
                                     strokeWidth={2}
-                                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                                 />
                             </svg>
                         </motion.div>
@@ -67,7 +111,7 @@ export default function Home() {
                         transition={{ delay: 0.3 }}
                         className="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight"
                     >
-                        Akash Auth
+                        Shout
                     </motion.h1>
 
                     <motion.p
@@ -76,8 +120,8 @@ export default function Home() {
                         transition={{ delay: 0.4 }}
                         className="text-zinc-400 text-lg max-w-md mx-auto"
                     >
-                        Secure, passwordless authentication with passkeys and
-                        Web3 wallets
+                        Voice calls over Ethereum. Connect your wallet and start
+                        talking.
                     </motion.p>
                 </motion.div>
 
@@ -132,12 +176,12 @@ export default function Home() {
                     >
                         Powered by{" "}
                         <a
-                            href="https://pimlico.io"
+                            href="https://agora.io"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-violet-400 hover:text-violet-300 transition-colors"
+                            className="text-emerald-400 hover:text-emerald-300 transition-colors"
                         >
-                            Pimlico
+                            Agora
                         </a>{" "}
                         &{" "}
                         <a

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import {
   createWebAuthnCredential,
   toWebAuthnAccount,
@@ -19,7 +19,7 @@ import {
 import { createSmartAccountClient } from "permissionless";
 
 // Storage keys
-const CREDENTIAL_STORAGE_KEY = "passkey_credential";
+const CREDENTIAL_STORAGE_KEY = "shout_passkey_credential";
 
 // Types
 export type PasskeyState = {
@@ -30,21 +30,24 @@ export type PasskeyState = {
   smartAccount: SmartAccount<SafeSmartAccountImplementation<"0.7">> | null;
   smartAccountAddress: Address | null;
   error: string | null;
+  hasStoredCredential: boolean;
 };
 
-export type UsePasskeyReturn = PasskeyState & {
+export type PasskeyContextType = PasskeyState & {
   register: (username: string) => Promise<void>;
   login: () => Promise<void>;
   logout: () => void;
   clearError: () => void;
 };
 
+const PasskeyContext = createContext<PasskeyContextType | null>(null);
+
 // Get the chain and bundler URL from environment
 const chain = baseSepolia;
 const bundlerUrl = process.env.NEXT_PUBLIC_PIMLICO_BUNDLER_URL;
 const pimlicoApiKey = process.env.NEXT_PUBLIC_PIMLICO_API_KEY;
 
-export function usePasskey(): UsePasskeyReturn {
+export function PasskeyProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PasskeyState>({
     isLoading: false,
     isAuthenticated: false,
@@ -53,7 +56,14 @@ export function usePasskey(): UsePasskeyReturn {
     smartAccount: null,
     smartAccountAddress: null,
     error: null,
+    hasStoredCredential: false,
   });
+
+  // Check for stored credential on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(CREDENTIAL_STORAGE_KEY);
+    setState((prev) => ({ ...prev, hasStoredCredential: !!stored }));
+  }, []);
 
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }));
@@ -62,11 +72,13 @@ export function usePasskey(): UsePasskeyReturn {
   const createSmartAccountFromCredential = useCallback(
     async (credential: P256Credential) => {
       if (!bundlerUrl && !pimlicoApiKey) {
-        console.warn("Pimlico not configured - smart account creation skipped");
+        console.warn("Pimlico not configured - using derived address");
+        // Generate a deterministic address from the credential public key
+        const mockAddress = `0x${credential.publicKey.slice(2, 42)}` as Address;
         return {
           webAuthnAccount: toWebAuthnAccount({ credential }),
           smartAccount: null,
-          smartAccountAddress: null,
+          smartAccountAddress: mockAddress,
         };
       }
 
@@ -131,10 +143,10 @@ export function usePasskey(): UsePasskeyReturn {
       try {
         // Create WebAuthn credential (passkey)
         const credential = await createWebAuthnCredential({
-          name: username || "Akash User",
+          name: username || "Shout User",
         });
 
-        // Store credential in localStorage (serialize the raw credential)
+        // Store credential in localStorage
         const credentialToStore = {
           id: credential.id,
           publicKey: credential.publicKey,
@@ -162,6 +174,7 @@ export function usePasskey(): UsePasskeyReturn {
           > | null,
           smartAccountAddress,
           error: null,
+          hasStoredCredential: true,
         });
       } catch (error) {
         const errorMessage =
@@ -180,7 +193,7 @@ export function usePasskey(): UsePasskeyReturn {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Try to get stored credential
+      // Try to get stored credential info
       const storedCredential = localStorage.getItem(CREDENTIAL_STORAGE_KEY);
 
       if (!storedCredential) {
@@ -188,8 +201,27 @@ export function usePasskey(): UsePasskeyReturn {
       }
 
       const parsedCredential = JSON.parse(storedCredential);
-      
-      // Reconstruct credential with raw object
+
+      // Use WebAuthn to authenticate with the stored credential
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          allowCredentials: [
+            {
+              id: Uint8Array.from(atob(parsedCredential.id.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
+              type: "public-key",
+            },
+          ],
+          userVerification: "preferred",
+          timeout: 60000,
+        },
+      });
+
+      if (!assertion) {
+        throw new Error("Authentication failed. Please try again.");
+      }
+
+      // Reconstruct credential
       const credential: P256Credential = {
         id: parsedCredential.id,
         publicKey: parsedCredential.publicKey,
@@ -213,6 +245,7 @@ export function usePasskey(): UsePasskeyReturn {
         > | null,
         smartAccountAddress,
         error: null,
+        hasStoredCredential: true,
       });
     } catch (error) {
       const errorMessage =
@@ -226,7 +259,6 @@ export function usePasskey(): UsePasskeyReturn {
   }, [createSmartAccountFromCredential]);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(CREDENTIAL_STORAGE_KEY);
     setState({
       isLoading: false,
       isAuthenticated: false,
@@ -235,14 +267,30 @@ export function usePasskey(): UsePasskeyReturn {
       smartAccount: null,
       smartAccountAddress: null,
       error: null,
+      hasStoredCredential: true,
     });
   }, []);
 
-  return {
-    ...state,
-    register,
-    login,
-    logout,
-    clearError,
-  };
+  return (
+    <PasskeyContext.Provider
+      value={{
+        ...state,
+        register,
+        login,
+        logout,
+        clearError,
+      }}
+    >
+      {children}
+    </PasskeyContext.Provider>
+  );
 }
+
+export function usePasskeyContext() {
+  const context = useContext(PasskeyContext);
+  if (!context) {
+    throw new Error("usePasskeyContext must be used within a PasskeyProvider");
+  }
+  return context;
+}
+

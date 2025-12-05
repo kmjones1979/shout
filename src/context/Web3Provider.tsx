@@ -12,7 +12,7 @@ const queryClient = new QueryClient();
 
 // Set up metadata
 const metadata = {
-  name: "Akash Auth",
+  name: "Shout",
   description: "Passkey & Wallet Authentication",
   url: typeof window !== "undefined" ? window.location.origin : "https://localhost:3000",
   icons: ["https://avatars.githubusercontent.com/u/179229932"],

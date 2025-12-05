@@ -1,5 +1,5 @@
 {
-  "name": "eth-akash",
+  "name": "shout",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,8 +13,11 @@
     "@metamask/sdk": "^0.33.1",
     "@reown/appkit": "^1.8.14",
     "@reown/appkit-adapter-wagmi": "^1.8.14",
+    "@supabase/supabase-js": "^2.86.2",
     "@tanstack/react-query": "^5.90.12",
     "@walletconnect/ethereum-provider": "^2.21.10",
+    "agora-rtc-react": "^2.5.0",
+    "agora-rtc-sdk-ng": "^4.24.1",
     "motion": "^12.23.25",
     "next": "16.0.7",
     "permissionless": "^0.3.2",

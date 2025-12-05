@@ -1,0 +1,224 @@
+"use client";
+
+import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { type Friend } from "@/hooks/useFriends";
+
+type FriendsListProps = {
+  friends: Friend[];
+  onCall: (friend: Friend) => void;
+  onRemove: (friendId: string) => void;
+  isCallActive: boolean;
+};
+
+export function FriendsList({
+  friends,
+  onCall,
+  onRemove,
+  isCallActive,
+}: FriendsListProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const getDisplayName = (friend: Friend) => {
+    return friend.nickname || friend.ensName || formatAddress(friend.address);
+  };
+
+  const getSecondaryText = (friend: Friend) => {
+    if (friend.nickname && friend.ensName) {
+      return friend.ensName;
+    }
+    if (friend.nickname || friend.ensName) {
+      return formatAddress(friend.address);
+    }
+    return null;
+  };
+
+  if (friends.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+          <svg
+            className="w-8 h-8 text-zinc-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+        </div>
+        <p className="text-zinc-400 font-medium">No friends yet</p>
+        <p className="text-zinc-600 text-sm mt-1">
+          Add friends to start calling them
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <AnimatePresence>
+        {friends.map((friend, index) => (
+          <motion.div
+            key={friend.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ delay: index * 0.05 }}
+            className="group"
+          >
+            <div className="bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl p-4 transition-all">
+              <div className="flex items-center gap-4">
+                {/* Avatar */}
+                <div className="relative">
+                  {friend.avatar ? (
+                    <img
+                      src={friend.avatar}
+                      alt={getDisplayName(friend)}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                      <span className="text-white font-bold text-lg">
+                        {getDisplayName(friend)[0].toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  {friend.isOnline && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-zinc-800" />
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium truncate">
+                    {getDisplayName(friend)}
+                  </p>
+                  {getSecondaryText(friend) && (
+                    <p className="text-zinc-500 text-sm truncate">
+                      {getSecondaryText(friend)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2">
+                  {/* Call Button */}
+                  <button
+                    onClick={() => onCall(friend)}
+                    disabled={isCallActive}
+                    className="w-10 h-10 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Voice Call"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                      />
+                    </svg>
+                  </button>
+
+                  {/* More Options */}
+                  <button
+                    onClick={() =>
+                      setExpandedId(expandedId === friend.id ? null : friend.id)
+                    }
+                    className="w-10 h-10 rounded-full bg-zinc-700/50 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Expanded Options */}
+              <AnimatePresence>
+                {expandedId === friend.id && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-4 pt-4 border-t border-zinc-700/50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(friend.address);
+                        }}
+                        className="flex-1 py-2 px-3 rounded-lg bg-zinc-700/50 hover:bg-zinc-700 text-zinc-300 text-sm transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                        Copy Address
+                      </button>
+                      <button
+                        onClick={() => {
+                          onRemove(friend.id);
+                          setExpandedId(null);
+                        }}
+                        className="py-2 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                        Remove
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
