@@ -36,28 +36,39 @@ export function AddFriendModal({
     }
 
     const timer = setTimeout(async () => {
-      const trimmedInput = input.trim().toLowerCase();
-      
-      // First, try to lookup as a Shout username (if it doesn't look like an address or ENS)
-      if (!trimmedInput.startsWith("0x") && !trimmedInput.includes(".")) {
-        const usernameResult = await lookupUsername(trimmedInput);
-        if (usernameResult) {
-          // Found a username - now resolve the address for ENS/avatar
-          const ensResult = await resolveAddressOrENS(usernameResult.wallet_address);
-          setResolved({
-            address: usernameResult.wallet_address as `0x${string}`,
-            ensName: ensResult?.ensName || null,
-            avatar: ensResult?.avatar || null,
-          });
-          setResolvedFromUsername(true);
-          return;
+      try {
+        const trimmedInput = input.trim().toLowerCase();
+        
+        // First, try to lookup as a Shout username (if it doesn't look like an address or ENS)
+        if (!trimmedInput.startsWith("0x") && !trimmedInput.includes(".")) {
+          try {
+            const usernameResult = await lookupUsername(trimmedInput);
+            if (usernameResult) {
+              // Found a username - now resolve the address for ENS/avatar
+              const ensResult = await resolveAddressOrENS(usernameResult.wallet_address);
+              setResolved({
+                address: usernameResult.wallet_address as `0x${string}`,
+                ensName: ensResult?.ensName || null,
+                avatar: ensResult?.avatar || null,
+              });
+              setResolvedFromUsername(true);
+              return;
+            }
+          } catch (err) {
+            console.error("[AddFriend] Username lookup failed:", err);
+            // Continue to ENS resolution
+          }
         }
+        
+        // Fall back to ENS/address resolution
+        const result = await resolveAddressOrENS(trimmedInput);
+        setResolved(result);
+        setResolvedFromUsername(false);
+      } catch (err) {
+        console.error("[AddFriend] Resolution failed:", err);
+        setResolved(null);
+        setResolvedFromUsername(false);
       }
-      
-      // Fall back to ENS/address resolution
-      const result = await resolveAddressOrENS(trimmedInput);
-      setResolved(result);
-      setResolvedFromUsername(false);
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timer);

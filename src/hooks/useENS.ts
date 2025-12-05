@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { createPublicClient, http, isAddress, type Address } from "viem";
 import { mainnet } from "viem/chains";
 import { normalize } from "viem/ens";
 
+// Use BuidlGuidl's public RPC
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http(),
+  transport: http("https://mainnet.rpc.buidlguidl.com", {
+    timeout: 15000,
+    retryCount: 2,
+  }),
 });
 
 export type ENSResolution = {
@@ -28,20 +32,27 @@ export function useENS() {
       try {
         // Check if input is already an address
         if (isAddress(input)) {
-          // Try to get ENS name for this address
-          const ensName = await publicClient.getEnsName({
-            address: input,
-          });
-
+          // Try to get ENS name for this address (optional - don't fail if this doesn't work)
+          let ensName: string | null = null;
           let avatar: string | null = null;
-          if (ensName) {
-            try {
-              avatar = await publicClient.getEnsAvatar({
-                name: normalize(ensName),
-              });
-            } catch {
-              // Avatar fetch failed, continue without it
+          
+          try {
+            ensName = await publicClient.getEnsName({
+              address: input,
+            });
+            
+            if (ensName) {
+              try {
+                avatar = await publicClient.getEnsAvatar({
+                  name: normalize(ensName),
+                });
+              } catch {
+                // Avatar fetch failed, continue without it
+              }
             }
+          } catch (err) {
+            console.warn("[ENS] Reverse lookup failed for address:", input, err);
+            // Continue without ENS name - address is still valid
           }
 
           return {
@@ -78,13 +89,20 @@ export function useENS() {
             ensName: normalizedName,
             avatar,
           };
-        } catch {
-          setError("Invalid ENS name");
+        } catch (err) {
+          console.warn("[ENS] Forward lookup failed:", normalizedName, err);
+          setError("Could not resolve ENS name");
           return null;
         }
       } catch (err) {
+        console.error("[ENS] Resolution error:", err);
+        // Handle mobile-specific errors
         const message = err instanceof Error ? err.message : "Resolution failed";
-        setError(message);
+        if (message.includes("Load Failed") || message.includes("Failed to fetch") || message.includes("NetworkError")) {
+          setError("Network error. Please check your connection.");
+        } else {
+          setError(message);
+        }
         return null;
       } finally {
         setIsResolving(false);

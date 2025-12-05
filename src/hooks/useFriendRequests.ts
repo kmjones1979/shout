@@ -40,31 +40,42 @@ export function useFriendRequests(userAddress: Address | null) {
 
   // Fetch all data
   const fetchData = useCallback(async () => {
-    if (!userAddress || !isSupabaseConfigured || !supabase) return;
+    console.log("[fetchData] Starting...", { userAddress, isSupabaseConfigured, hasSupabase: !!supabase });
+    if (!userAddress || !isSupabaseConfigured || !supabase) {
+      console.log("[fetchData] Skipping - missing requirements");
+      return;
+    }
 
     setIsLoading(true);
     try {
       const normalizedAddress = userAddress.toLowerCase();
+      console.log("[fetchData] Fetching for address:", normalizedAddress);
 
       // Fetch incoming requests
-      const { data: incoming } = await supabase
+      const { data: incoming, error: incomingError } = await supabase
         .from("shout_friend_requests")
         .select("*")
         .eq("to_address", normalizedAddress)
         .eq("status", "pending");
+      
+      console.log("[fetchData] Incoming requests:", incoming, "Error:", incomingError);
 
       // Fetch outgoing requests
-      const { data: outgoing } = await supabase
+      const { data: outgoing, error: outgoingError } = await supabase
         .from("shout_friend_requests")
         .select("*")
         .eq("from_address", normalizedAddress)
         .eq("status", "pending");
+      
+      console.log("[fetchData] Outgoing requests:", outgoing, "Error:", outgoingError);
 
       // Fetch friends
-      const { data: friendsData } = await supabase
+      const { data: friendsData, error: friendsError } = await supabase
         .from("shout_friends")
         .select("*")
         .eq("user_address", normalizedAddress);
+      
+      console.log("[fetchData] Friends:", friendsData, "Error:", friendsError);
 
       // Resolve ENS for incoming requests
       const resolvedIncoming = await Promise.all(
@@ -196,7 +207,7 @@ export function useFriendRequests(userAddress: Address | null) {
           .maybeSingle();
 
         if (friendCheckError) {
-          console.error("[sendFriendRequest] Friend check error:", friendCheckError);
+          console.warn("[sendFriendRequest] Friend check warning:", friendCheckError);
           // Don't fail, just continue - table might not exist yet
         }
 
@@ -213,7 +224,7 @@ export function useFriendRequests(userAddress: Address | null) {
           .or(`and(from_address.eq.${normalizedFrom},to_address.eq.${normalizedTo}),and(from_address.eq.${normalizedTo},to_address.eq.${normalizedFrom})`);
         
         if (requestCheckError) {
-          console.error("[sendFriendRequest] Request check error:", requestCheckError);
+          console.warn("[sendFriendRequest] Request check warning:", requestCheckError);
           // Don't fail, just continue
         }
 

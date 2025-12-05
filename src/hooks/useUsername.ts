@@ -137,15 +137,26 @@ export function useUsername(userAddress: Address | null) {
   const lookupUsername = useCallback(async (name: string): Promise<UsernameData | null> => {
     if (!isSupabaseConfigured || !supabase) return null;
 
-    const normalizedName = name.toLowerCase().trim();
+    try {
+      const normalizedName = name.toLowerCase().trim();
+      const client = supabase;
 
-    const { data } = await supabase
-      .from("shout_usernames")
-      .select("*")
-      .eq("username", normalizedName)
-      .maybeSingle();
+      const { data, error } = await client
+        .from("shout_usernames")
+        .select("*")
+        .eq("username", normalizedName)
+        .maybeSingle();
 
-    return data;
+      if (error) {
+        console.error("[useUsername] Lookup error:", error);
+        return null;
+      }
+
+      return data;
+    } catch (err) {
+      console.error("[useUsername] Lookup exception:", err);
+      return null;
+    }
   }, []);
 
   // Search usernames by prefix (for autocomplete)
