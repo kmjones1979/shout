@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useENS, type ENSResolution } from "@/hooks/useENS";
 
 type AddFriendModalProps = {
   isOpen: boolean;
@@ -20,17 +21,49 @@ export function AddFriendModal({
 }: AddFriendModalProps) {
   const [input, setInput] = useState("");
   const [nickname, setNickname] = useState("");
+  const [resolved, setResolved] = useState<ENSResolution | null>(null);
+  const { resolveAddressOrENS, isResolving, error: resolveError } = useENS();
+
+  // Debounced resolution as user types
+  useEffect(() => {
+    if (!input.trim() || input.trim().length < 3) {
+      setResolved(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      const result = await resolveAddressOrENS(input.trim());
+      setResolved(result);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [input, resolveAddressOrENS]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setInput("");
+      setNickname("");
+      setResolved(null);
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!resolved?.address) return;
 
-    const success = await onAdd(input.trim(), nickname.trim() || undefined);
+    // Use the resolved address for the request
+    const success = await onAdd(resolved.address, nickname.trim() || undefined);
     if (success) {
       setInput("");
       setNickname("");
+      setResolved(null);
       onClose();
     }
+  };
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   return (
@@ -55,7 +88,7 @@ export function AddFriendModal({
           >
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Add Friend</h2>
+                <h2 className="text-xl font-bold text-white">Send Friend Request</h2>
                 <button
                   onClick={onClose}
                   className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
@@ -81,14 +114,114 @@ export function AddFriendModal({
                   <label className="block text-sm font-medium text-zinc-400 mb-2">
                     Wallet Address or ENS Name
                   </label>
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="0x... or vitalik.eth"
-                    className="w-full py-3 px-4 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="0x... or vitalik.eth"
+                      className="w-full py-3 px-4 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all"
+                    />
+                    {isResolving && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <svg
+                          className="animate-spin h-5 w-5 text-violet-400"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Resolved Preview */}
+                <AnimatePresence>
+                  {resolved && resolved.address && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+                        <div className="flex items-center gap-3">
+                          {/* Avatar */}
+                          {resolved.avatar ? (
+                            <img
+                              src={resolved.avatar}
+                              alt="Avatar"
+                              className="w-12 h-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+                              <span className="text-white font-bold text-lg">
+                                {(resolved.ensName || resolved.address)[0].toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <svg
+                                className="w-4 h-4 text-emerald-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              <span className="text-emerald-400 text-sm font-medium">
+                                Resolved
+                              </span>
+                            </div>
+                            {resolved.ensName && (
+                              <p className="text-white font-medium truncate">
+                                {resolved.ensName}
+                              </p>
+                            )}
+                            <p className="text-zinc-400 text-sm font-mono truncate">
+                              {formatAddress(resolved.address)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Resolution Error */}
+                <AnimatePresence>
+                  {resolveError && input.trim().length >= 3 && !isResolving && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3"
+                    >
+                      <p className="text-amber-400 text-sm">{resolveError}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-2">
@@ -126,7 +259,7 @@ export function AddFriendModal({
                   </button>
                   <button
                     type="submit"
-                    disabled={isLoading || !input.trim()}
+                    disabled={isLoading || !input.trim() || (!resolved?.address && !isResolving)}
                     className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium transition-all hover:shadow-lg hover:shadow-violet-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
@@ -150,17 +283,17 @@ export function AddFriendModal({
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                           />
                         </svg>
-                        Resolving...
+                        Sending...
                       </span>
                     ) : (
-                      "Add Friend"
+                      "Send Request"
                     )}
                   </button>
                 </div>
               </form>
 
               <p className="text-zinc-500 text-xs text-center mt-4">
-                Enter an Ethereum address or ENS name to add as a friend
+                They&apos;ll need to accept your request before you can call
               </p>
             </div>
           </motion.div>
@@ -169,5 +302,3 @@ export function AddFriendModal({
     </AnimatePresence>
   );
 }
-
-

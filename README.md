@@ -7,7 +7,8 @@ Voice calls for Web3. Connect with friends using passkeys or wallets and make re
 -   🔐 **Passkey Authentication** - Passwordless login using device biometrics (Face ID, Touch ID, Windows Hello)
 -   💼 **Wallet Connection** - Connect MetaMask, Coinbase Wallet, and 300+ wallets via WalletConnect
 -   🧠 **Smart Accounts** - ERC-4337 smart accounts powered by Pimlico and Safe
--   👥 **Friends List** - Add friends by wallet address or ENS name with avatar resolution
+-   👥 **Friend Requests** - Send and accept friend requests with real-time notifications
+-   🔍 **Live ENS Resolution** - Instantly resolve ENS names with avatar preview as you type
 -   📞 **Voice Calling** - Real-time voice calls between friends using Agora
 -   🎨 **Beautiful UI** - Modern, animated interface with glass morphism effects
 
@@ -20,6 +21,7 @@ Voice calls for Web3. Connect with friends using passkeys or wallets and make re
 -   **Account Abstraction**: Pimlico, Safe Smart Accounts
 -   **Wallet Connection**: WalletConnect AppKit
 -   **Voice Calling**: Agora RTC SDK
+-   **Database**: Supabase (Postgres + Realtime)
 
 ## Getting Started
 
@@ -60,6 +62,10 @@ NEXT_PUBLIC_PIMLICO_API_KEY=your_pimlico_api_key
 
 # Required for Voice Calling (use APP ID only mode, no certificate)
 NEXT_PUBLIC_AGORA_APP_ID=your_agora_app_id
+
+# Required for Friend Requests & Real-time Features
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ### Getting API Keys
@@ -85,6 +91,13 @@ NEXT_PUBLIC_AGORA_APP_ID=your_agora_app_id
 4. Copy your App ID
 5. Free tier includes 10,000 minutes/month
 
+#### Supabase
+
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Create a new project
+3. Go to Settings → API
+4. Copy your Project URL and anon public key
+
 ### Development
 
 Run the development server:
@@ -102,39 +115,42 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 1. **Passkey**: Creates a WebAuthn credential stored securely on your device, then deploys an ERC-4337 Safe smart account
 2. **Wallet**: Standard EOA wallet connection via WalletConnect
 
-### Friends & Calling
+### Friend Requests
 
-1. **Add Friends**: Enter an Ethereum address or ENS name (e.g., `vitalik.eth`)
-2. **ENS Resolution**: Automatically resolves ENS names to addresses and fetches avatars
-3. **Voice Call**: Click the call button to start a real-time voice call
+1. **Send Request**: Enter an Ethereum address or ENS name (e.g., `vitalik.eth`)
+2. **Live Resolution**: See the resolved address and avatar as you type
+3. **Approval Required**: The other user must accept your request
+4. **Real-time Updates**: Incoming requests appear instantly via Supabase Realtime
+5. **Voice Call**: Once friends, click the call button to start talking
 
 ## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── globals.css         # Global styles and animations
-│   ├── layout.tsx          # Root layout with providers
-│   └── page.tsx            # Main app entry point
+│   ├── globals.css           # Global styles and animations
+│   ├── layout.tsx            # Root layout with providers
+│   └── page.tsx              # Main app entry point
 ├── components/
-│   ├── PasskeyAuth.tsx     # Passkey authentication
-│   ├── WalletConnect.tsx   # Wallet connection
-│   ├── Dashboard.tsx       # Main dashboard after login
-│   ├── FriendsList.tsx     # Friends list with call buttons
-│   ├── AddFriendModal.tsx  # Add friend modal
-│   ├── VoiceCallUI.tsx     # In-call UI
+│   ├── PasskeyAuth.tsx       # Passkey authentication
+│   ├── WalletConnect.tsx     # Wallet connection
+│   ├── Dashboard.tsx         # Main dashboard after login
+│   ├── FriendsList.tsx       # Friends list with call buttons
+│   ├── FriendRequests.tsx    # Incoming/outgoing requests UI
+│   ├── AddFriendModal.tsx    # Send friend request modal
+│   ├── VoiceCallUI.tsx       # In-call UI
 │   └── IncomingCallModal.tsx # Incoming call notification
 ├── config/
-│   ├── wagmi.ts            # Wagmi and WalletConnect config
-│   ├── agora.ts            # Agora RTC config
-│   └── supabase.ts         # Supabase client (optional)
+│   ├── wagmi.ts              # Wagmi and WalletConnect config
+│   ├── agora.ts              # Agora RTC config
+│   └── supabase.ts           # Supabase client
 ├── context/
-│   └── Web3Provider.tsx    # Web3 context provider
+│   ├── Web3Provider.tsx      # Web3 context provider
+│   └── PasskeyProvider.tsx   # Passkey auth context
 └── hooks/
-    ├── usePasskey.ts       # Passkey authentication
-    ├── useFriends.ts       # Friends management
-    ├── useVoiceCall.ts     # Voice call functionality
-    └── useENS.ts           # ENS resolution
+    ├── useFriendRequests.ts  # Friend request system
+    ├── useVoiceCall.ts       # Voice call functionality
+    └── useENS.ts             # ENS resolution
 ```
 
 ## License

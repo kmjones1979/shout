@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { type Friend } from "@/hooks/useFriends";
+import { type Address } from "viem";
+
+export type Friend = {
+  id: string;
+  address: Address;
+  ensName: string | null;
+  avatar: string | null;
+  nickname: string | null;
+  addedAt: string;
+  isOnline?: boolean;
+};
 
 type FriendsListProps = {
   friends: Friend[];

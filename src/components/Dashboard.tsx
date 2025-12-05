@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { type Address } from "viem";
-import { useFriends, type Friend } from "@/hooks/useFriends";
+import { useFriendRequests, type Friend } from "@/hooks/useFriendRequests";
 import { useVoiceCall } from "@/hooks/useVoiceCall";
+import { useCallSignaling } from "@/hooks/useCallSignaling";
+import { useENS } from "@/hooks/useENS";
 import { FriendsList } from "./FriendsList";
+import { FriendRequests } from "./FriendRequests";
 import { AddFriendModal } from "./AddFriendModal";
 import { VoiceCallUI } from "./VoiceCallUI";
 import { IncomingCallModal } from "./IncomingCallModal";
@@ -16,22 +19,55 @@ type DashboardProps = {
   onLogout: () => void;
 };
 
+// Convert Friend from useFriendRequests to the format FriendsList expects
+type FriendsListFriend = {
+  id: string;
+  address: Address;
+  ensName: string | null;
+  avatar: string | null;
+  nickname: string | null;
+  addedAt: string;
+  isOnline?: boolean;
+};
+
 export function Dashboard({ userAddress, onLogout }: DashboardProps) {
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
-  const [currentCallFriend, setCurrentCallFriend] = useState<Friend | null>(null);
+  const [currentCallFriend, setCurrentCallFriend] = useState<FriendsListFriend | null>(null);
+  const [userENS, setUserENS] = useState<{ ensName: string | null; avatar: string | null }>({
+    ensName: null,
+    avatar: null,
+  });
+
+  const { resolveAddressOrENS } = useENS();
 
   const {
+    incomingRequests,
+    outgoingRequests,
     friends,
     isLoading: isFriendsLoading,
     error: friendsError,
-    incomingCall,
-    addFriend,
+    sendFriendRequest,
+    acceptRequest,
+    rejectRequest,
     removeFriend,
-    initiateCall,
-    acceptCall,
-    rejectCall,
     clearError: clearFriendsError,
-  } = useFriends(userAddress);
+    isConfigured: isSupabaseConfigured,
+    refresh: refreshFriends,
+  } = useFriendRequests(userAddress);
+
+  // Resolve user's ENS
+  useEffect(() => {
+    async function resolveUserENS() {
+      const resolved = await resolveAddressOrENS(userAddress);
+      if (resolved) {
+        setUserENS({
+          ensName: resolved.ensName,
+          avatar: resolved.avatar,
+        });
+      }
+    }
+    resolveUserENS();
+  }, [userAddress, resolveAddressOrENS]);
 
   const {
     callState,
@@ -45,39 +81,82 @@ export function Dashboard({ userAddress, onLogout }: DashboardProps) {
     isConfigured: isCallConfigured,
   } = useVoiceCall();
 
+  const {
+    incomingCall,
+    startCall,
+    acceptCall,
+    rejectCall,
+    endCall: endCallSignaling,
+  } = useCallSignaling(userAddress);
+
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const handleCall = async (friend: Friend) => {
+  // Convert friends to the format FriendsList expects
+  const friendsListData: FriendsListFriend[] = friends.map((f) => ({
+    id: f.id,
+    address: f.friend_address as Address,
+    ensName: f.ensName || null,
+    avatar: f.avatar || null,
+    nickname: f.nickname,
+    addedAt: f.created_at,
+  }));
+
+  // Find caller info from friends list
+  const incomingCallFriend = incomingCall
+    ? friendsListData.find(
+        (f) => f.address.toLowerCase() === incomingCall.caller_address.toLowerCase()
+      )
+    : null;
+
+  const handleSendFriendRequest = async (addressOrENS: string): Promise<boolean> => {
+    return await sendFriendRequest(addressOrENS);
+  };
+
+  const handleCall = async (friend: FriendsListFriend) => {
     if (!isCallConfigured) {
       alert("Voice calling not configured. Please set NEXT_PUBLIC_AGORA_APP_ID.");
       return;
     }
 
     setCurrentCallFriend(friend);
-    const channelName = await initiateCall(friend);
     
+    // Generate a unique channel name based on both addresses (sorted for consistency)
+    const addresses = [userAddress.toLowerCase(), friend.address.toLowerCase()].sort();
+    const channelName = `shout_${addresses[0].slice(2, 10)}_${addresses[1].slice(2, 10)}`;
+    
+    // Create signaling record to notify the callee
+    await startCall(friend.address, channelName);
+    
+    // Join the Agora channel
+    await joinCall(channelName);
+  };
+
+  const handleAcceptCall = async () => {
+    const channelName = await acceptCall();
     if (channelName) {
+      // Find the caller friend to show in the call UI
+      if (incomingCallFriend) {
+        setCurrentCallFriend(incomingCallFriend);
+      }
+      // Join the Agora channel
       await joinCall(channelName);
     }
   };
 
+  const handleRejectCall = async () => {
+    await rejectCall();
+  };
+
   const handleEndCall = async () => {
     await leaveCall();
+    await endCallSignaling();
     setCurrentCallFriend(null);
   };
 
-  const handleAcceptIncomingCall = async () => {
-    const call = acceptCall();
-    if (call) {
-      setCurrentCallFriend(call.from);
-      await joinCall(call.channelName);
-    }
-  };
-
-  const handleRejectIncomingCall = () => {
-    rejectCall();
+  const handleRemoveFriend = async (friendId: string) => {
+    await removeFriend(friendId);
   };
 
   return (
@@ -88,9 +167,49 @@ export function Dashboard({ userAddress, onLogout }: DashboardProps) {
           <div className="max-w-4xl mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                {/* User Avatar or App Icon */}
+                {userENS.avatar ? (
+                  <img
+                    src={userENS.avatar}
+                    alt="Avatar"
+                    className="w-10 h-10 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                      />
+                    </svg>
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-white font-bold">
+                    {userENS.ensName || "Shout"}
+                  </h1>
+                  <p className="text-zinc-500 text-sm font-mono">
+                    {formatAddress(userAddress)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={refreshFriends}
+                  disabled={isFriendsLoading}
+                  className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors disabled:opacity-50"
+                  title="Refresh"
+                >
                   <svg
-                    className="w-5 h-5 text-white"
+                    className={`w-5 h-5 ${isFriendsLoading ? "animate-spin" : ""}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -99,29 +218,54 @@ export function Dashboard({ userAddress, onLogout }: DashboardProps) {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                     />
                   </svg>
-                </div>
-                <div>
-                  <h1 className="text-white font-bold">Shout</h1>
-                  <p className="text-zinc-500 text-sm">{formatAddress(userAddress)}</p>
-                </div>
+                </button>
+                <button
+                  onClick={onLogout}
+                  className="py-2 px-4 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors"
+                >
+                  Disconnect
+                </button>
               </div>
-
-              <button
-                onClick={onLogout}
-                className="py-2 px-4 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors"
-              >
-                Disconnect
-              </button>
             </div>
           </div>
         </header>
 
         {/* Main Content */}
         <main className="max-w-4xl mx-auto px-4 py-8">
-          {/* Status Banner */}
+          {/* Status Banners */}
+          {!isSupabaseConfigured && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4"
+            >
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-amber-400 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <div>
+                  <p className="text-amber-200 font-medium">Database Not Connected</p>
+                  <p className="text-amber-200/70 text-sm mt-1">
+                    Set Supabase environment variables to enable friend requests.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {!isAgoraConfigured && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -146,19 +290,25 @@ export function Dashboard({ userAddress, onLogout }: DashboardProps) {
                   <p className="text-amber-200 font-medium">Voice Calling Not Configured</p>
                   <p className="text-amber-200/70 text-sm mt-1">
                     Set <code className="bg-amber-500/20 px-1 rounded">NEXT_PUBLIC_AGORA_APP_ID</code> to enable voice calls.
-                    Get a free App ID at{" "}
-                    <a
-                      href="https://console.agora.io"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline hover:text-amber-100"
-                    >
-                      console.agora.io
-                    </a>
                   </p>
                 </div>
               </div>
             </motion.div>
+          )}
+
+          {/* Friend Requests Section */}
+          {(incomingRequests.length > 0 || outgoingRequests.length > 0) && (
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden mb-6">
+              <div className="p-6">
+                <FriendRequests
+                  incomingRequests={incomingRequests}
+                  outgoingRequests={outgoingRequests}
+                  onAccept={acceptRequest}
+                  onReject={rejectRequest}
+                  isLoading={isFriendsLoading}
+                />
+              </div>
+            </div>
           )}
 
           {/* Friends Section */}
@@ -173,7 +323,8 @@ export function Dashboard({ userAddress, onLogout }: DashboardProps) {
                 </div>
                 <button
                   onClick={() => setIsAddFriendOpen(true)}
-                  className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium transition-all hover:shadow-lg hover:shadow-violet-500/25 flex items-center gap-2"
+                  disabled={!isSupabaseConfigured}
+                  className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium transition-all hover:shadow-lg hover:shadow-violet-500/25 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg
                     className="w-5 h-5"
@@ -195,9 +346,9 @@ export function Dashboard({ userAddress, onLogout }: DashboardProps) {
 
             <div className="p-6">
               <FriendsList
-                friends={friends}
+                friends={friendsListData}
                 onCall={handleCall}
-                onRemove={removeFriend}
+                onRemove={handleRemoveFriend}
                 isCallActive={callState !== "idle"}
               />
             </div>
@@ -216,6 +367,20 @@ export function Dashboard({ userAddress, onLogout }: DashboardProps) {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Friends Error */}
+          <AnimatePresence>
+            {friendsError && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="mt-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4"
+              >
+                <p className="text-red-400">{friendsError}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </main>
       </div>
 
@@ -226,16 +391,23 @@ export function Dashboard({ userAddress, onLogout }: DashboardProps) {
           setIsAddFriendOpen(false);
           clearFriendsError();
         }}
-        onAdd={addFriend}
+        onAdd={handleSendFriendRequest}
         isLoading={isFriendsLoading}
         error={friendsError}
       />
 
       {/* Voice Call UI */}
       <AnimatePresence>
-        {callState !== "idle" && (
+        {callState !== "idle" && currentCallFriend && (
           <VoiceCallUI
-            friend={currentCallFriend}
+            friend={{
+              id: currentCallFriend.id,
+              address: currentCallFriend.address,
+              ensName: currentCallFriend.ensName,
+              avatar: currentCallFriend.avatar,
+              nickname: currentCallFriend.nickname,
+              addedAt: currentCallFriend.addedAt,
+            }}
             callState={callState}
             isMuted={isMuted}
             duration={duration}
@@ -247,14 +419,15 @@ export function Dashboard({ userAddress, onLogout }: DashboardProps) {
       </AnimatePresence>
 
       {/* Incoming Call Modal */}
-      {incomingCall && (
+      {incomingCall && callState === "idle" && (
         <IncomingCallModal
-          caller={incomingCall.from}
-          onAccept={handleAcceptIncomingCall}
-          onReject={handleRejectIncomingCall}
+          callerAddress={incomingCall.caller_address}
+          callerName={incomingCallFriend?.ensName || incomingCallFriend?.nickname}
+          callerAvatar={incomingCallFriend?.avatar}
+          onAccept={handleAcceptCall}
+          onReject={handleRejectCall}
         />
       )}
     </>
   );
 }
-

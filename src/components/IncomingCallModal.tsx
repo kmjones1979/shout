@@ -1,24 +1,27 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { type Friend } from "@/hooks/useFriends";
 
 type IncomingCallModalProps = {
-  caller: Friend | null;
+  callerAddress: string;
+  callerName?: string | null;
+  callerAvatar?: string | null;
   onAccept: () => void;
   onReject: () => void;
 };
 
 export function IncomingCallModal({
-  caller,
+  callerAddress,
+  callerName,
+  callerAvatar,
   onAccept,
   onReject,
 }: IncomingCallModalProps) {
-  if (!caller) return null;
-
-  const getDisplayName = (friend: Friend) => {
-    return friend.nickname || friend.ensName || `${friend.address.slice(0, 6)}...${friend.address.slice(-4)}`;
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
+
+  const displayName = callerName || formatAddress(callerAddress);
 
   return (
     <AnimatePresence>
@@ -63,16 +66,16 @@ export function IncomingCallModal({
             />
             
             {/* Avatar */}
-            {caller.avatar ? (
+            {callerAvatar ? (
               <img
-                src={caller.avatar}
-                alt={getDisplayName(caller)}
+                src={callerAvatar}
+                alt={displayName}
                 className="w-24 h-24 rounded-full object-cover relative z-10"
               />
             ) : (
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center relative z-10">
                 <span className="text-white font-bold text-4xl">
-                  {getDisplayName(caller)[0].toUpperCase()}
+                  {displayName[0].toUpperCase()}
                 </span>
               </div>
             )}
@@ -81,7 +84,7 @@ export function IncomingCallModal({
           {/* Caller Info */}
           <div className="text-center mb-8">
             <h2 className="text-xl font-bold text-white mb-1">
-              {getDisplayName(caller)}
+              {displayName}
             </h2>
             <p className="text-emerald-400 text-sm flex items-center justify-center gap-2">
               <span className="relative flex h-2 w-2">
@@ -143,5 +146,3 @@ export function IncomingCallModal({
     </AnimatePresence>
   );
 }
-
-

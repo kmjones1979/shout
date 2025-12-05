@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { type Friend } from "@/hooks/useFriends";
+import { type Friend } from "@/components/FriendsList";
 import { type CallState } from "@/hooks/useVoiceCall";
 
 type VoiceCallUIProps = {
