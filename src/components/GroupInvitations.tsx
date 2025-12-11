@@ -7,7 +7,7 @@ import type { GroupInvitation } from "@/hooks/useGroupInvitations";
 interface GroupInvitationsProps {
   invitations: GroupInvitation[];
   onAccept: (invitationId: string) => Promise<{ success: boolean; groupId?: string; error?: string }>;
-  onDecline: (invitationId: string) => Promise<boolean>;
+  onDecline: (invitationId: string, groupId: string) => Promise<boolean>;
   onJoinGroup: (groupId: string) => Promise<void>;
   isLoading?: boolean;
 }
@@ -43,14 +43,14 @@ export function GroupInvitations({
     }
   };
 
-  const handleDecline = async (invitationId: string) => {
-    setProcessingId(invitationId);
+  const handleDecline = async (invitation: GroupInvitation) => {
+    setProcessingId(invitation.id);
     setError(null);
 
     try {
-      await onDecline(invitationId);
+      await onDecline(invitation.id, invitation.groupId);
     } catch (err) {
-      setError("Failed to decline invitation");
+      setError("Failed to leave group");
     } finally {
       setProcessingId(null);
     }
@@ -104,14 +104,19 @@ export function GroupInvitations({
               </div>
             </div>
 
+            {/* Info text */}
+            <p className="text-zinc-500 text-xs mt-3">
+              You&apos;ve been added to this group. Accept to show it in your list, or decline to leave.
+            </p>
+
             {/* Actions */}
-            <div className="flex gap-2 mt-4">
+            <div className="flex gap-2 mt-3">
               <button
-                onClick={() => handleDecline(invitation.id)}
+                onClick={() => handleDecline(invitation)}
                 disabled={processingId === invitation.id}
                 className="flex-1 py-2 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors disabled:opacity-50"
               >
-                Decline
+                Leave Group
               </button>
               <button
                 onClick={() => handleAccept(invitation)}
@@ -124,10 +129,10 @@ export function GroupInvitations({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Joining...
+                    Opening...
                   </>
                 ) : (
-                  "Accept & Join"
+                  "Accept"
                 )}
               </button>
             </div>

@@ -641,7 +641,7 @@ export function XMTPProvider({ children, userAddress }: { children: ReactNode; u
       try {
         console.log("[XMTP] Creating group with members:", memberAddresses);
 
-        // Get inbox IDs for all members
+        // Get inbox IDs for all members (if any provided)
         const inboxIds: string[] = [];
         for (const address of memberAddresses) {
           const identifier = {
@@ -656,11 +656,13 @@ export function XMTPProvider({ children, userAddress }: { children: ReactNode; u
           }
         }
 
-        if (inboxIds.length === 0) {
+        // Only fail if members were requested but none could be found
+        if (memberAddresses.length > 0 && inboxIds.length === 0) {
           return { success: false, error: "None of the selected members have XMTP enabled" };
         }
 
-        // Create the group
+        // Create the group (can be empty - just the creator)
+        console.log("[XMTP] Creating group with", inboxIds.length, "initial members");
         const group = await clientRef.current.conversations.newGroup(inboxIds);
         console.log("[XMTP] Group created:", group.id);
 

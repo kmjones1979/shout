@@ -249,6 +249,7 @@ function DashboardContent({ userAddress, onLogout, isPasskeyUser }: DashboardPro
     markGroupAsRead,
     joinGroupById,
     addGroupMembers,
+    leaveGroup,
   } = useXMTPContext();
   
   // Toast notification state
@@ -361,14 +362,16 @@ function DashboardContent({ userAddress, onLogout, isPasskeyUser }: DashboardPro
   const handleCreateGroup = async (memberAddresses: string[], groupName: string): Promise<boolean> => {
     setIsCreatingGroup(true);
     try {
-      // Create the group with just the creator first
-      const result = await createGroup([], groupName);
+      // Create the group WITH all members immediately
+      // (XMTP requires creator to add members - members can't add themselves)
+      const result = await createGroup(memberAddresses, groupName);
       if (!result.success || !result.groupId) {
         console.error("[Dashboard] Failed to create group:", result.error);
         return false;
       }
 
-      // Send invitations to all selected members
+      // Send invitations as notifications (members are already in the group)
+      // This lets them know they were added and they can leave if they want
       const invitesSent = await sendInvitations(result.groupId, groupName, memberAddresses);
       if (!invitesSent) {
         console.warn("[Dashboard] Failed to send some invitations");
@@ -1300,7 +1303,16 @@ function DashboardContent({ userAddress, onLogout, isPasskeyUser }: DashboardPro
               <GroupInvitations
                 invitations={pendingInvitations}
                 onAccept={acceptInvitation}
-                onDecline={declineInvitation}
+                onDecline={async (invitationId: string, groupId: string) => {
+                  // First leave/hide the XMTP group
+                  await leaveGroup(groupId);
+                  // Then mark the invitation as declined
+                  const result = await declineInvitation(invitationId);
+                  // Refresh groups list
+                  const fetchedGroups = await getGroups();
+                  setGroups(fetchedGroups);
+                  return result;
+                }}
                 onJoinGroup={handleJoinGroupFromInvite}
               />
             </div>
