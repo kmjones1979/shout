@@ -53,6 +53,7 @@ function DashboardContent({ userAddress, onLogout, isPasskeyUser }: DashboardPro
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
   const [isSocialsModalOpen, setIsSocialsModalOpen] = useState(false);
+  const [showXMTPSuccess, setShowXMTPSuccess] = useState(false);
   const [currentCallFriend, setCurrentCallFriend] = useState<FriendsListFriend | null>(null);
   const [chatFriend, setChatFriend] = useState<FriendsListFriend | null>(null);
   const [userENS, setUserENS] = useState<{ ensName: string | null; avatar: string | null }>({
@@ -224,6 +225,17 @@ function DashboardContent({ userAddress, onLogout, isPasskeyUser }: DashboardPro
       return () => clearTimeout(timer);
     }
   }, [isXMTPInitialized, isXMTPInitializing, initializeXMTP]);
+
+  // Show XMTP success message briefly when initialized
+  useEffect(() => {
+    if (isXMTPInitialized && !isPasskeyUser) {
+      setShowXMTPSuccess(true);
+      const timer = setTimeout(() => {
+        setShowXMTPSuccess(false);
+      }, 4000); // Hide after 4 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [isXMTPInitialized, isPasskeyUser]);
 
   // Handler to switch to mainnet
   const handleSwitchToMainnet = async () => {
@@ -945,34 +957,36 @@ function DashboardContent({ userAddress, onLogout, isPasskeyUser }: DashboardPro
             </motion.div>
           )}
 
-          {/* XMTP Enabled Success - hidden for passkey users */}
-          {isXMTPInitialized && !isPasskeyUser && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="mb-6 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4"
-            >
-              <div className="flex items-center gap-3">
-                <svg
-                  className="w-5 h-5 text-emerald-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                <p className="text-emerald-200 font-medium">
-                  XMTP Chat Enabled! You can now send and receive encrypted messages.
-                </p>
-              </div>
-            </motion.div>
-          )}
+          {/* XMTP Enabled Success - auto-dismisses after 4 seconds */}
+          <AnimatePresence>
+            {showXMTPSuccess && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mb-6 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <svg
+                    className="w-5 h-5 text-emerald-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <p className="text-emerald-200 font-medium">
+                    XMTP Chat Enabled! You can now send and receive encrypted messages.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Friend Requests Section */}
           {(incomingRequests.length > 0 || outgoingRequests.length > 0) && (
