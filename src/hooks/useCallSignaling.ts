@@ -25,9 +25,10 @@ export function useCallSignaling(userAddress: Address | null) {
 
     const normalizedAddress = userAddress.toLowerCase();
 
-    // Check for existing ringing calls on mount
+    // Check for existing ringing calls
     const checkExistingCalls = async () => {
       if (!supabase) return;
+      console.log("[CallSignaling] Checking for existing calls...");
       const { data } = await supabase
         .from("shout_calls")
         .select("*")
@@ -37,11 +38,31 @@ export function useCallSignaling(userAddress: Address | null) {
         .limit(1);
 
       if (data && data.length > 0) {
+        console.log("[CallSignaling] Found ringing call:", data[0]);
         setIncomingCall(data[0]);
       }
     };
 
+    // Check on mount
     checkExistingCalls();
+
+    // Also check when app comes to foreground (e.g., from push notification)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("[CallSignaling] App became visible, checking for calls...");
+        checkExistingCalls();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    
+    // Also check on focus (backup for iOS PWA)
+    const handleFocus = () => {
+      console.log("[CallSignaling] App focused, checking for calls...");
+      checkExistingCalls();
+    };
+    
+    window.addEventListener("focus", handleFocus);
 
     // Subscribe to new incoming calls
     const channel = supabase
@@ -110,6 +131,8 @@ export function useCallSignaling(userAddress: Address | null) {
 
     return () => {
       if (supabase) supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
     };
   }, [userAddress]);
 
