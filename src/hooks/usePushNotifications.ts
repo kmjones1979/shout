@@ -67,8 +67,11 @@ export function usePushNotifications(userAddress: Address | null) {
 
     // Subscribe to push notifications
     const subscribe = useCallback(async (): Promise<boolean> => {
+        console.log("[Push] Subscribe called", { isSupported, userAddress, hasSupabase: !!supabase, vapidKey: !!VAPID_PUBLIC_KEY });
+        
         if (!isSupported || !userAddress || !supabase) {
             setError("Push notifications not supported or not configured");
+            setIsLoading(false);
             return false;
         }
 
@@ -77,7 +80,9 @@ export function usePushNotifications(userAddress: Address | null) {
 
         try {
             // Request permission
+            console.log("[Push] Requesting permission...");
             const result = await Notification.requestPermission();
+            console.log("[Push] Permission result:", result);
             setPermission(result);
 
             if (result !== "granted") {
@@ -86,19 +91,38 @@ export function usePushNotifications(userAddress: Address | null) {
                 return false;
             }
 
-            // Get service worker registration
-            const registration = await navigator.serviceWorker.ready;
+            // Check if service worker is registered
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            console.log("[Push] Service worker registrations:", registrations.length);
+            
+            if (registrations.length === 0) {
+                setError("Service worker not available. Try refreshing the page.");
+                setIsLoading(false);
+                return false;
+            }
+
+            // Get service worker registration with timeout
+            console.log("[Push] Waiting for service worker...");
+            const registration = await Promise.race([
+                navigator.serviceWorker.ready,
+                new Promise<never>((_, reject) => 
+                    setTimeout(() => reject(new Error("Service worker timeout")), 10000)
+                )
+            ]);
+            console.log("[Push] Service worker ready");
 
             // Subscribe to push
+            console.log("[Push] Subscribing to push manager...");
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY!),
             });
 
-            console.log("[Push] Subscription created:", subscription);
+            console.log("[Push] Subscription created:", subscription.endpoint);
 
             // Save subscription to Supabase
             const subscriptionJSON = subscription.toJSON();
+            console.log("[Push] Saving to Supabase...");
             const { error: dbError } = await supabase
                 .from("push_subscriptions")
                 .upsert(
@@ -114,11 +138,12 @@ export function usePushNotifications(userAddress: Address | null) {
 
             if (dbError) {
                 console.error("[Push] Error saving subscription:", dbError);
-                setError("Failed to save subscription");
+                setError("Failed to save subscription: " + dbError.message);
                 setIsLoading(false);
                 return false;
             }
 
+            console.log("[Push] Subscription saved successfully!");
             setIsSubscribed(true);
             setIsLoading(false);
             return true;
