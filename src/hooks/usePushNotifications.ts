@@ -5,6 +5,7 @@ import { type Address } from "viem";
 import { supabase } from "@/config/supabase";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const PUSH_PROMPTED_KEY = "reach_push_prompted";
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -181,6 +182,46 @@ export function usePushNotifications(userAddress: Address | null) {
             return false;
         }
     }, [isSupported, userAddress]);
+
+    // Auto-prompt for push notifications on first launch (for PWA users)
+    useEffect(() => {
+        if (!isSupported || !userAddress || isSubscribed || isLoading) {
+            return;
+        }
+
+        // Check if we've already prompted
+        const hasPrompted = localStorage.getItem(PUSH_PROMPTED_KEY);
+        if (hasPrompted) {
+            return;
+        }
+
+        // Check if running as PWA (standalone mode)
+        const isStandalone =
+            window.matchMedia("(display-mode: standalone)").matches ||
+            // @ts-expect-error - iOS Safari specific
+            window.navigator.standalone === true;
+
+        if (!isStandalone) {
+            return; // Only auto-prompt for PWA users
+        }
+
+        // Check if permission not already denied
+        if (Notification.permission === "denied") {
+            localStorage.setItem(PUSH_PROMPTED_KEY, "true");
+            return;
+        }
+
+        // Small delay to let the app settle
+        const timer = setTimeout(async () => {
+            console.log("[Push] Auto-prompting for push notifications...");
+            localStorage.setItem(PUSH_PROMPTED_KEY, "true");
+            
+            // This will trigger the permission prompt and subscribe if granted
+            await subscribe();
+        }, 2000);
+
+        return () => clearTimeout(timer);
+    }, [isSupported, userAddress, isSubscribed, isLoading, subscribe]);
 
     // Unsubscribe from push notifications
     const unsubscribe = useCallback(async (): Promise<boolean> => {
