@@ -98,18 +98,26 @@ export function usePushNotifications(userAddress: Address | null) {
                 return false;
             }
 
-            // Wait for service worker to be ready (with timeout)
-            console.log("[Push] Waiting for service worker...");
+            // Get service worker registration quickly
+            console.log("[Push] Getting service worker...");
 
             let registration: ServiceWorkerRegistration;
             try {
-                registration = await Promise.race([
-                    navigator.serviceWorker.ready,
-                    new Promise<never>((_, reject) =>
-                        setTimeout(() => reject(new Error("timeout")), 15000)
-                    ),
-                ]);
-                console.log("[Push] Service worker ready:", registration.scope);
+                // First try to get existing registrations (fast)
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                if (registrations.length > 0) {
+                    registration = registrations[0];
+                    console.log("[Push] Using existing registration:", registration.scope);
+                } else {
+                    // Fall back to ready promise with short timeout
+                    registration = await Promise.race([
+                        navigator.serviceWorker.ready,
+                        new Promise<never>((_, reject) =>
+                            setTimeout(() => reject(new Error("timeout")), 3000)
+                        ),
+                    ]);
+                    console.log("[Push] Service worker ready:", registration.scope);
+                }
             } catch (swError) {
                 console.error("[Push] Service worker error:", swError);
                 // Try to register manually if not available
@@ -117,21 +125,12 @@ export function usePushNotifications(userAddress: Address | null) {
                     console.log("[Push] Attempting manual SW registration...");
                     registration = await navigator.serviceWorker.register(
                         "/sw.js",
-                        {
-                            scope: "/",
-                        }
+                        { scope: "/" }
                     );
-                    // Wait for it to be ready
-                    await navigator.serviceWorker.ready;
                     console.log("[Push] Manual registration successful");
                 } catch (regError) {
-                    console.error(
-                        "[Push] Manual registration failed:",
-                        regError
-                    );
-                    setError(
-                        "Service worker not available. Please refresh and try again."
-                    );
+                    console.error("[Push] Manual registration failed:", regError);
+                    setError("Service worker not available. Please refresh and try again.");
                     setIsLoading(false);
                     return false;
                 }
@@ -215,7 +214,7 @@ export function usePushNotifications(userAddress: Address | null) {
         const timer = setTimeout(async () => {
             console.log("[Push] Auto-prompting for push notifications...");
             localStorage.setItem(PUSH_PROMPTED_KEY, "true");
-            
+
             // This will trigger the permission prompt and subscribe if granted
             await subscribe();
         }, 2000);
