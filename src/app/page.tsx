@@ -8,6 +8,7 @@ import { PasskeyAuth } from "@/components/PasskeyAuth";
 import { WalletConnect } from "@/components/WalletConnect";
 import { Dashboard } from "@/components/Dashboard";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { Globe } from "@/components/Globe";
 import { usePasskeyContext } from "@/context/PasskeyProvider";
 
 export default function Home() {
@@ -68,8 +69,14 @@ export default function Home() {
     // Show loading splash while checking auth
     if (isCheckingAuth) {
         return (
-            <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
-                <div className="text-center">
+            <main className="min-h-screen bg-zinc-950 flex items-center justify-center overflow-hidden relative">
+                {/* Globe in background */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <Globe className="opacity-70" />
+                </div>
+
+                {/* Loading content */}
+                <div className="text-center relative z-10">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/30 animate-pulse">
                         <svg
                             className="w-8 h-8 text-white"
@@ -85,7 +92,10 @@ export default function Home() {
                             />
                         </svg>
                     </div>
-                    <p className="text-zinc-500 text-sm">Loading...</p>
+                    <h1 className="text-2xl font-bold text-white mb-2 drop-shadow-lg">
+                        Reach
+                    </h1>
+                    <p className="text-zinc-400 text-sm">Loading...</p>
                 </div>
             </main>
         );
@@ -111,19 +121,17 @@ export default function Home() {
             <div className="absolute inset-0 grid-pattern" />
             <div className="absolute inset-0 noise-overlay" />
 
-            {/* Glowing orbs */}
-            <div
-                className="glow-orb glow-orb-violet w-[500px] h-[500px] -top-48 -left-24 animate-pulse-glow"
-                style={{ animationDelay: "0s" }}
-            />
-            <div
-                className="glow-orb glow-orb-purple w-[400px] h-[400px] top-1/3 -right-32 animate-pulse-glow"
-                style={{ animationDelay: "2s" }}
-            />
-            <div
-                className="glow-orb glow-orb-blue w-[300px] h-[300px] -bottom-24 left-1/4 animate-pulse-glow"
-                style={{ animationDelay: "4s" }}
-            />
+            {/* Globe Background */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 0.6, scale: 1 }}
+                    transition={{ duration: 2, delay: 0.3 }}
+                    className="relative"
+                >
+                    <Globe />
+                </motion.div>
+            </div>
 
             {/* Content */}
             <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12 safe-area-inset">
@@ -165,7 +173,7 @@ export default function Home() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight"
+                        className="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
                     >
                         Reach
                     </motion.h1>
@@ -174,7 +182,7 @@ export default function Home() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="text-zinc-400 text-lg max-w-md mx-auto"
+                        className="text-zinc-300 text-lg max-w-md mx-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
                     >
                         Voice calls and chat over Ethereum. Connect your wallet
                         and start talking.

@@ -21,3 +21,5 @@ export const isSupabaseConfigured = !!supabase;
 
 
 
+
+

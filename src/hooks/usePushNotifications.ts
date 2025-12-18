@@ -104,10 +104,14 @@ export function usePushNotifications(userAddress: Address | null) {
             let registration: ServiceWorkerRegistration;
             try {
                 // First try to get existing registrations (fast)
-                const registrations = await navigator.serviceWorker.getRegistrations();
+                const registrations =
+                    await navigator.serviceWorker.getRegistrations();
                 if (registrations.length > 0) {
                     registration = registrations[0];
-                    console.log("[Push] Using existing registration:", registration.scope);
+                    console.log(
+                        "[Push] Using existing registration:",
+                        registration.scope
+                    );
                 } else {
                     // Fall back to ready promise with short timeout
                     registration = await Promise.race([
@@ -116,7 +120,10 @@ export function usePushNotifications(userAddress: Address | null) {
                             setTimeout(() => reject(new Error("timeout")), 3000)
                         ),
                     ]);
-                    console.log("[Push] Service worker ready:", registration.scope);
+                    console.log(
+                        "[Push] Service worker ready:",
+                        registration.scope
+                    );
                 }
             } catch (swError) {
                 console.error("[Push] Service worker error:", swError);
@@ -129,8 +136,13 @@ export function usePushNotifications(userAddress: Address | null) {
                     );
                     console.log("[Push] Manual registration successful");
                 } catch (regError) {
-                    console.error("[Push] Manual registration failed:", regError);
-                    setError("Service worker not available. Please refresh and try again.");
+                    console.error(
+                        "[Push] Manual registration failed:",
+                        regError
+                    );
+                    setError(
+                        "Service worker not available. Please refresh and try again."
+                    );
                     setIsLoading(false);
                     return false;
                 }
@@ -270,3 +282,5 @@ export function usePushNotifications(userAddress: Address | null) {
         unsubscribe,
     };
 }
+
+
