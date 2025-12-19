@@ -98,8 +98,10 @@ export function PasskeyProvider({ children }: { children: ReactNode }) {
         async (credential: P256Credential) => {
             // Always use device-specific address to ensure unique accounts per device
             // Check if we already have a stored address for this device
-            let deviceAddress = localStorage.getItem(DEVICE_ADDRESS_STORAGE_KEY);
-            
+            let deviceAddress = localStorage.getItem(
+                DEVICE_ADDRESS_STORAGE_KEY
+            );
+
             if (!deviceAddress) {
                 // Generate a new device-specific address
                 const deviceId = getDeviceId();

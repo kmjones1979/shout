@@ -417,22 +417,39 @@ export function useVoiceCall() {
         }
     }, [state.isMuted]);
 
+    // Use ref to track video state to avoid stale closures
+    const isVideoOffRef = useRef(state.isVideoOff);
+    useEffect(() => {
+        isVideoOffRef.current = state.isVideoOff;
+    }, [state.isVideoOff]);
+
     const toggleVideo = useCallback(async () => {
-        if (!AgoraRTC || !clientRef.current) return;
+        if (!AgoraRTC || !clientRef.current) {
+            console.log("[Video] Cannot toggle - AgoraRTC or client not ready");
+            return;
+        }
 
-        const newVideoOffState = !state.isVideoOff;
+        const currentlyVideoOff = isVideoOffRef.current;
+        console.log("[Video] Toggle video called, currently off:", currentlyVideoOff);
 
-        if (newVideoOffState) {
-            // Turn off video
+        if (!currentlyVideoOff) {
+            // Turn off video (currently on -> turn off)
+            console.log("[Video] Turning OFF video");
             if (localVideoTrackRef.current) {
-                await clientRef.current.unpublish([localVideoTrackRef.current]);
-                localVideoTrackRef.current.stop();
-                localVideoTrackRef.current.close();
-                localVideoTrackRef.current = null;
+                try {
+                    await clientRef.current.unpublish([localVideoTrackRef.current]);
+                    localVideoTrackRef.current.stop();
+                    localVideoTrackRef.current.close();
+                    localVideoTrackRef.current = null;
+                    console.log("[Video] Video track unpublished and closed");
+                } catch (err) {
+                    console.error("[Video] Error unpublishing video:", err);
+                }
             }
             setState((prev) => ({ ...prev, isVideoOff: true }));
         } else {
-            // Turn on video
+            // Turn on video (currently off -> turn on)
+            console.log("[Video] Turning ON video");
             try {
                 // Agora only allows ONE video track at a time
                 // If screen sharing is on, we need to stop it first
@@ -447,6 +464,7 @@ export function useVoiceCall() {
                 const localVideoTrack = await AgoraRTC.createCameraVideoTrack();
                 localVideoTrackRef.current = localVideoTrack;
                 await clientRef.current.publish([localVideoTrack]);
+                console.log("[Video] Video track created and published");
 
                 // Update state to video call mode and video on, screen share off
                 setState((prev) => ({
@@ -460,6 +478,7 @@ export function useVoiceCall() {
                 const playLocalVideo = () => {
                     if (localVideoRef.current && localVideoTrackRef.current) {
                         localVideoTrackRef.current.play(localVideoRef.current);
+                        console.log("[Video] Local video playing");
                     } else if (localVideoTrackRef.current) {
                         // Container might not be ready yet after layout switch
                         setTimeout(playLocalVideo, 100);
@@ -467,11 +486,11 @@ export function useVoiceCall() {
                 };
                 playLocalVideo();
             } catch (error) {
-                console.error("Error enabling video:", error);
+                console.error("[Video] Error enabling video:", error);
                 return; // Don't update state if failed
             }
         }
-    }, [state.isVideoOff]);
+    }, []);
 
     const toggleScreenShare = useCallback(async () => {
         if (!AgoraRTC || !clientRef.current) return;
