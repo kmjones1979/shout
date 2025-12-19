@@ -486,7 +486,8 @@ export function useFriendRequests(userAddress: string | null) {
     // Cancel outgoing friend request
     const cancelRequest = useCallback(
         async (requestId: string): Promise<boolean> => {
-            if (!userAddress || !isSupabaseConfigured || !supabase) return false;
+            if (!userAddress || !isSupabaseConfigured || !supabase)
+                return false;
 
             setIsLoading(true);
             try {
