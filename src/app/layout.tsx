@@ -31,11 +31,23 @@ export const metadata: Metadata = {
     },
     icons: {
         icon: [
-            { url: "/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-            { url: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+            {
+                url: "/icons/favicon-16x16.png",
+                sizes: "16x16",
+                type: "image/png",
+            },
+            {
+                url: "/icons/favicon-32x32.png",
+                sizes: "32x32",
+                type: "image/png",
+            },
         ],
         apple: [
-            { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+            {
+                url: "/icons/apple-touch-icon.png",
+                sizes: "180x180",
+                type: "image/png",
+            },
         ],
     },
 };
@@ -60,9 +72,45 @@ export default function RootLayout({
                 <meta name="application-name" content="Reach" />
                 <meta name="mobile-web-app-capable" content="yes" />
                 <meta name="apple-mobile-web-app-capable" content="yes" />
-                <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+                <meta
+                    name="apple-mobile-web-app-status-bar-style"
+                    content="black-translucent"
+                />
                 <meta name="apple-mobile-web-app-title" content="Reach" />
-                <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+                <link
+                    rel="apple-touch-icon"
+                    href="/icons/apple-touch-icon.png"
+                />
+                {/* Suppress known AppKit/Solana errors before React loads */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            (function() {
+                                var suppressedErrors = ['Endpoint URL must start with', 'No project ID is configured'];
+                                window.addEventListener('error', function(e) {
+                                    var msg = e.message || (e.error && e.error.message) || '';
+                                    for (var i = 0; i < suppressedErrors.length; i++) {
+                                        if (msg.indexOf(suppressedErrors[i]) !== -1) {
+                                            e.preventDefault();
+                                            e.stopImmediatePropagation();
+                                            return false;
+                                        }
+                                    }
+                                }, true);
+                                window.addEventListener('unhandledrejection', function(e) {
+                                    var msg = (e.reason && e.reason.message) || String(e.reason) || '';
+                                    for (var i = 0; i < suppressedErrors.length; i++) {
+                                        if (msg.indexOf(suppressedErrors[i]) !== -1) {
+                                            e.preventDefault();
+                                            e.stopImmediatePropagation();
+                                            return false;
+                                        }
+                                    }
+                                }, true);
+                            })();
+                        `,
+                    }}
+                />
             </head>
             <body
                 className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased`}

@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { createPublicClient, http, isAddress, type Address, fallback } from "viem";
 import { mainnet } from "viem/chains";
 import { normalize } from "viem/ens";
+import { isSolanaAddress } from "@/utils/address";
 
 // Multiple RPC endpoints for reliability
 const publicClient = createPublicClient({
@@ -17,7 +18,7 @@ const publicClient = createPublicClient({
 });
 
 export type ENSResolution = {
-  address: Address | null;
+  address: Address | string | null; // Can be EVM Address or Solana address string
   ensName: string | null;
   avatar: string | null;
 };
@@ -41,7 +42,14 @@ export function useENS() {
       setError(null);
 
       try {
-        // Check if input is already an address
+        // Check if input is a Solana address - return it directly (no ENS for Solana)
+        if (isSolanaAddress(input)) {
+          const result: ENSResolution = { address: input, ensName: null, avatar: null };
+          ensCache.set(cacheKey, result);
+          return result;
+        }
+
+        // Check if input is already an EVM address
         if (isAddress(input)) {
           let ensName: string | null = null;
           let avatar: string | null = null;

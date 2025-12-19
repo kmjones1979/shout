@@ -18,7 +18,10 @@
         "@react-three/drei": "^10.7.7",
         "@react-three/fiber": "^9.4.2",
         "@reown/appkit": "^1.8.14",
+        "@reown/appkit-adapter-solana": "^1.8.15",
         "@reown/appkit-adapter-wagmi": "^1.8.14",
+        "@solana/wallet-adapter-wallets": "^0.19.37",
+        "@solana/web3.js": "^1.98.4",
         "@supabase/supabase-js": "^2.86.2",
         "@tanstack/react-query": "^5.90.12",
         "@walletconnect/ethereum-provider": "^2.21.10",
@@ -52,5 +55,6 @@
         "tailwindcss": "^4",
         "typescript": "^5",
         "vercel": "^49.1.0"
-    }
+    },
+    "packageManager": "yarn@3.2.3+sha512.f26f951f67de0c6a33ee381e5ff364709c87e70eb5e65c694e4facde3512f1fa80b8679e6ba31ce7d340fbb46f08dd683af9457e240f25a204be7427940d767e"
 }

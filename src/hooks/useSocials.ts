@@ -1,233 +1,234 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { type Address } from "viem";
 import { supabase, isSupabaseConfigured } from "@/config/supabase";
+import { normalizeAddress } from "@/utils/address";
 
 export type SocialLinks = {
-  x?: string;
-  farcaster?: string;
-  instagram?: string;
-  tiktok?: string;
-  youtube?: string;
-  linkedin?: string;
-  github?: string;
+    x?: string;
+    farcaster?: string;
+    instagram?: string;
+    tiktok?: string;
+    youtube?: string;
+    linkedin?: string;
+    github?: string;
 };
 
 export type SocialPlatform = keyof SocialLinks;
 
 export const SOCIAL_PLATFORMS: {
-  key: SocialPlatform;
-  name: string;
-  placeholder: string;
-  urlPrefix: string;
-  icon: string;
-  color: string;
+    key: SocialPlatform;
+    name: string;
+    placeholder: string;
+    urlPrefix: string;
+    icon: string;
+    color: string;
 }[] = [
-  {
-    key: "x",
-    name: "X (Twitter)",
-    placeholder: "username",
-    urlPrefix: "https://x.com/",
-    icon: "𝕏",
-    color: "bg-black text-white",
-  },
-  {
-    key: "farcaster",
-    name: "Farcaster",
-    placeholder: "username",
-    urlPrefix: "https://warpcast.com/",
-    icon: "🟣",
-    color: "bg-purple-600 text-white",
-  },
-  {
-    key: "instagram",
-    name: "Instagram",
-    placeholder: "username",
-    urlPrefix: "https://instagram.com/",
-    icon: "📷",
-    color: "bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 text-white",
-  },
-  {
-    key: "tiktok",
-    name: "TikTok",
-    placeholder: "username",
-    urlPrefix: "https://tiktok.com/@",
-    icon: "🎵",
-    color: "bg-black text-white",
-  },
-  {
-    key: "youtube",
-    name: "YouTube",
-    placeholder: "@handle or channel name",
-    urlPrefix: "https://youtube.com/@",
-    icon: "▶️",
-    color: "bg-red-600 text-white",
-  },
-  {
-    key: "linkedin",
-    name: "LinkedIn",
-    placeholder: "username",
-    urlPrefix: "https://linkedin.com/in/",
-    icon: "💼",
-    color: "bg-blue-700 text-white",
-  },
-  {
-    key: "github",
-    name: "GitHub",
-    placeholder: "username",
-    urlPrefix: "https://github.com/",
-    icon: "🐙",
-    color: "bg-gray-900 text-white",
-  },
+    {
+        key: "x",
+        name: "X (Twitter)",
+        placeholder: "username",
+        urlPrefix: "https://x.com/",
+        icon: "𝕏",
+        color: "bg-black text-white",
+    },
+    {
+        key: "farcaster",
+        name: "Farcaster",
+        placeholder: "username",
+        urlPrefix: "https://warpcast.com/",
+        icon: "🟣",
+        color: "bg-purple-600 text-white",
+    },
+    {
+        key: "instagram",
+        name: "Instagram",
+        placeholder: "username",
+        urlPrefix: "https://instagram.com/",
+        icon: "📷",
+        color: "bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 text-white",
+    },
+    {
+        key: "tiktok",
+        name: "TikTok",
+        placeholder: "username",
+        urlPrefix: "https://tiktok.com/@",
+        icon: "🎵",
+        color: "bg-black text-white",
+    },
+    {
+        key: "youtube",
+        name: "YouTube",
+        placeholder: "@handle or channel name",
+        urlPrefix: "https://youtube.com/@",
+        icon: "▶️",
+        color: "bg-red-600 text-white",
+    },
+    {
+        key: "linkedin",
+        name: "LinkedIn",
+        placeholder: "username",
+        urlPrefix: "https://linkedin.com/in/",
+        icon: "💼",
+        color: "bg-blue-700 text-white",
+    },
+    {
+        key: "github",
+        name: "GitHub",
+        placeholder: "username",
+        urlPrefix: "https://github.com/",
+        icon: "🐙",
+        color: "bg-gray-900 text-white",
+    },
 ];
 
-export function useSocials(userAddress: Address | null) {
-  const [socials, setSocials] = useState<SocialLinks>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function useSocials(userAddress: string | null) {
+    const [socials, setSocials] = useState<SocialLinks>({});
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-  // Fetch user's social links
-  const fetchSocials = useCallback(async () => {
-    if (!userAddress || !isSupabaseConfigured || !supabase) return;
+    // Fetch user's social links
+    const fetchSocials = useCallback(async () => {
+        if (!userAddress || !isSupabaseConfigured || !supabase) return;
 
-    setIsLoading(true);
-    setError(null);
+        setIsLoading(true);
+        setError(null);
 
-    try {
-      const { data, error: fetchError } = await supabase
-        .from("shout_socials")
-        .select("*")
-        .eq("wallet_address", userAddress.toLowerCase())
-        .single();
+        try {
+            const { data, error: fetchError } = await supabase
+                .from("shout_socials")
+                .select("*")
+                .eq("wallet_address", normalizeAddress(userAddress))
+                .single();
 
-      if (fetchError && fetchError.code !== "PGRST116") {
-        // PGRST116 = no rows returned, which is fine
-        console.error("[useSocials] Fetch error:", fetchError);
-        setError("Failed to load social links");
-        return;
-      }
+            if (fetchError && fetchError.code !== "PGRST116") {
+                // PGRST116 = no rows returned, which is fine
+                console.error("[useSocials] Fetch error:", fetchError);
+                setError("Failed to load social links");
+                return;
+            }
 
-      if (data) {
-        setSocials({
-          x: data.x_username || undefined,
-          farcaster: data.farcaster_username || undefined,
-          instagram: data.instagram_username || undefined,
-          tiktok: data.tiktok_username || undefined,
-          youtube: data.youtube_handle || undefined,
-          linkedin: data.linkedin_username || undefined,
-          github: data.github_username || undefined,
-        });
-      }
-    } catch (err) {
-      console.error("[useSocials] Error:", err);
-      setError("Failed to load social links");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userAddress]);
-
-  // Save social links
-  const saveSocials = useCallback(
-    async (newSocials: SocialLinks): Promise<boolean> => {
-      if (!userAddress || !isSupabaseConfigured || !supabase) return false;
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const { error: upsertError } = await supabase
-          .from("shout_socials")
-          .upsert(
-            {
-              wallet_address: userAddress.toLowerCase(),
-              x_username: newSocials.x || null,
-              farcaster_username: newSocials.farcaster || null,
-              instagram_username: newSocials.instagram || null,
-              tiktok_username: newSocials.tiktok || null,
-              youtube_handle: newSocials.youtube || null,
-              linkedin_username: newSocials.linkedin || null,
-              github_username: newSocials.github || null,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "wallet_address" }
-          );
-
-        if (upsertError) {
-          console.error("[useSocials] Save error:", upsertError);
-          setError("Failed to save social links");
-          return false;
+            if (data) {
+                setSocials({
+                    x: data.x_username || undefined,
+                    farcaster: data.farcaster_username || undefined,
+                    instagram: data.instagram_username || undefined,
+                    tiktok: data.tiktok_username || undefined,
+                    youtube: data.youtube_handle || undefined,
+                    linkedin: data.linkedin_username || undefined,
+                    github: data.github_username || undefined,
+                });
+            }
+        } catch (err) {
+            console.error("[useSocials] Error:", err);
+            setError("Failed to load social links");
+        } finally {
+            setIsLoading(false);
         }
+    }, [userAddress]);
 
-        setSocials(newSocials);
-        return true;
-      } catch (err) {
-        console.error("[useSocials] Error:", err);
-        setError("Failed to save social links");
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [userAddress]
-  );
+    // Save social links
+    const saveSocials = useCallback(
+        async (newSocials: SocialLinks): Promise<boolean> => {
+            if (!userAddress || !isSupabaseConfigured || !supabase)
+                return false;
 
-  // Fetch socials for a specific address (for viewing friend's socials)
-  const fetchSocialsForAddress = useCallback(
-    async (address: string): Promise<SocialLinks | null> => {
-      if (!isSupabaseConfigured || !supabase) return null;
+            setIsLoading(true);
+            setError(null);
 
-      try {
-        const { data, error: fetchError } = await supabase
-          .from("shout_socials")
-          .select("*")
-          .eq("wallet_address", address.toLowerCase())
-          .single();
+            try {
+                const { error: upsertError } = await supabase
+                    .from("shout_socials")
+                    .upsert(
+                        {
+                            wallet_address: normalizeAddress(userAddress),
+                            x_username: newSocials.x || null,
+                            farcaster_username: newSocials.farcaster || null,
+                            instagram_username: newSocials.instagram || null,
+                            tiktok_username: newSocials.tiktok || null,
+                            youtube_handle: newSocials.youtube || null,
+                            linkedin_username: newSocials.linkedin || null,
+                            github_username: newSocials.github || null,
+                            updated_at: new Date().toISOString(),
+                        },
+                        { onConflict: "wallet_address" }
+                    );
 
-        if (fetchError && fetchError.code !== "PGRST116") {
-          console.error("[useSocials] Fetch for address error:", fetchError);
-          return null;
-        }
+                if (upsertError) {
+                    console.error("[useSocials] Save error:", upsertError);
+                    setError("Failed to save social links");
+                    return false;
+                }
 
-        if (data) {
-          return {
-            x: data.x_username || undefined,
-            farcaster: data.farcaster_username || undefined,
-            instagram: data.instagram_username || undefined,
-            tiktok: data.tiktok_username || undefined,
-            youtube: data.youtube_handle || undefined,
-            linkedin: data.linkedin_username || undefined,
-            github: data.github_username || undefined,
-          };
-        }
+                setSocials(newSocials);
+                return true;
+            } catch (err) {
+                console.error("[useSocials] Error:", err);
+                setError("Failed to save social links");
+                return false;
+            } finally {
+                setIsLoading(false);
+            }
+        },
+        [userAddress]
+    );
 
-        return null;
-      } catch (err) {
-        console.error("[useSocials] Error:", err);
-        return null;
-      }
-    },
-    []
-  );
+    // Fetch socials for a specific address (for viewing friend's socials)
+    const fetchSocialsForAddress = useCallback(
+        async (address: string): Promise<SocialLinks | null> => {
+            if (!isSupabaseConfigured || !supabase) return null;
 
-  // Load on mount
-  useEffect(() => {
-    fetchSocials();
-  }, [fetchSocials]);
+            try {
+                const { data, error: fetchError } = await supabase
+                    .from("shout_socials")
+                    .select("*")
+                    .eq("wallet_address", normalizeAddress(address))
+                    .single();
 
-  // Count how many socials are set
-  const socialCount = Object.values(socials).filter(Boolean).length;
+                if (fetchError && fetchError.code !== "PGRST116") {
+                    console.error(
+                        "[useSocials] Fetch for address error:",
+                        fetchError
+                    );
+                    return null;
+                }
 
-  return {
-    socials,
-    socialCount,
-    isLoading,
-    error,
-    saveSocials,
-    fetchSocialsForAddress,
-    refetch: fetchSocials,
-  };
+                if (data) {
+                    return {
+                        x: data.x_username || undefined,
+                        farcaster: data.farcaster_username || undefined,
+                        instagram: data.instagram_username || undefined,
+                        tiktok: data.tiktok_username || undefined,
+                        youtube: data.youtube_handle || undefined,
+                        linkedin: data.linkedin_username || undefined,
+                        github: data.github_username || undefined,
+                    };
+                }
+
+                return null;
+            } catch (err) {
+                console.error("[useSocials] Error:", err);
+                return null;
+            }
+        },
+        []
+    );
+
+    // Load on mount
+    useEffect(() => {
+        fetchSocials();
+    }, [fetchSocials]);
+
+    // Count how many socials are set
+    const socialCount = Object.values(socials).filter(Boolean).length;
+
+    return {
+        socials,
+        socialCount,
+        isLoading,
+        error,
+        saveSocials,
+        fetchSocialsForAddress,
+        refetch: fetchSocials,
+    };
 }
-
-
-

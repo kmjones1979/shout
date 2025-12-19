@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { type Address } from "viem";
 import { supabase } from "@/config/supabase";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -22,7 +21,7 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
     return outputArray.buffer;
 }
 
-export function usePushNotifications(userAddress: Address | null) {
+export function usePushNotifications(userAddress: string | null) {
     const [isSupported, setIsSupported] = useState(false);
     const [permission, setPermission] =
         useState<NotificationPermission>("default");

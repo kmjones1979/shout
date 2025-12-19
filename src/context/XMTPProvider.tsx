@@ -444,11 +444,20 @@ export function XMTPProvider({
         }
     }, [userAddress, walletClient, error]);
 
-    // Check if an address is on XMTP
+    // Check if an address is on XMTP (only EVM addresses supported)
     const canMessage = useCallback(
         async (address: string): Promise<boolean> => {
             if (!XMTPClient) {
                 console.log("[XMTP] canMessage: SDK not loaded");
+                return false;
+            }
+
+            // XMTP only supports EVM addresses
+            if (!address.startsWith("0x")) {
+                console.log(
+                    "[XMTP] canMessage: Non-EVM address not supported:",
+                    address
+                );
                 return false;
             }
 
@@ -475,6 +484,7 @@ export function XMTPProvider({
     );
 
     // Check if multiple addresses can receive XMTP messages (batch)
+    // Only EVM addresses (0x...) are supported by XMTP
     const canMessageBatch = useCallback(
         async (addresses: string[]): Promise<Record<string, boolean>> => {
             if (!XMTPClient || addresses.length === 0) {
@@ -482,20 +492,46 @@ export function XMTPProvider({
             }
 
             try {
-                console.log("[XMTP] Batch checking canMessage for:", addresses);
+                // Filter to only EVM addresses (XMTP doesn't support Solana)
+                const evmAddresses = addresses.filter((addr) =>
+                    addr.startsWith("0x")
+                );
+                const nonEvmAddresses = addresses.filter(
+                    (addr) => !addr.startsWith("0x")
+                );
 
-                const identifiers = addresses.map((addr) => ({
-                    identifier: addr.toLowerCase(),
-                    identifierKind: "Ethereum" as const,
-                }));
-
-                const result = await XMTPClient.canMessage(identifiers);
+                console.log(
+                    "[XMTP] Batch checking canMessage for EVM addresses:",
+                    evmAddresses
+                );
+                if (nonEvmAddresses.length > 0) {
+                    console.log(
+                        "[XMTP] Skipping non-EVM addresses:",
+                        nonEvmAddresses
+                    );
+                }
 
                 const reachability: Record<string, boolean> = {};
-                for (const addr of addresses) {
-                    reachability[addr.toLowerCase()] = !!result.get(
-                        addr.toLowerCase()
-                    );
+
+                // Mark all non-EVM addresses as unreachable
+                for (const addr of nonEvmAddresses) {
+                    reachability[addr.toLowerCase()] = false;
+                }
+
+                // Only check EVM addresses if there are any
+                if (evmAddresses.length > 0) {
+                    const identifiers = evmAddresses.map((addr) => ({
+                        identifier: addr.toLowerCase(),
+                        identifierKind: "Ethereum" as const,
+                    }));
+
+                    const result = await XMTPClient.canMessage(identifiers);
+
+                    for (const addr of evmAddresses) {
+                        reachability[addr.toLowerCase()] = !!result.get(
+                            addr.toLowerCase()
+                        );
+                    }
                 }
 
                 console.log("[XMTP] Batch canMessage results:", reachability);
@@ -824,91 +860,98 @@ export function XMTPProvider({
 
             // Also start a polling fallback every 5 seconds
             const pollInterval = setInterval(async () => {
-                console.log("[XMTP Poll] Checking for new messages...");
                 if (!clientRef.current) {
-                    console.log("[XMTP Poll] No client, skipping");
                     return;
                 }
 
                 try {
-                    console.log("[XMTP Poll] Syncing conversations...");
                     await clientRef.current.conversations.sync();
                     const conversations =
                         await clientRef.current.conversations.list();
-                    console.log(
-                        "[XMTP Poll] Found",
-                        conversations.length,
-                        "conversations"
-                    );
 
                     for (const convo of conversations) {
-                        console.log(
-                            "[XMTP Poll] Checking conversation:",
-                            convo.id
-                        );
-                        await convo.sync();
-                        const messages = await convo.messages({
-                            limit: BigInt(1),
-                        });
+                        try {
+                            await convo.sync();
+                            const messages = await convo.messages({
+                                limit: BigInt(1),
+                            });
 
-                        if (messages.length > 0) {
-                            const latestMsg = messages[0];
-                            // Check if it's a new message from someone else
-                            if (
-                                typeof latestMsg.content === "string" &&
-                                latestMsg.senderInboxId !==
-                                    clientRef.current.inboxId
-                            ) {
-                                const msgKey = `${convo.id}-${latestMsg.id}`;
-                                const seenKey = `xmtp_seen_${msgKey}`;
+                            if (messages.length > 0) {
+                                const latestMsg = messages[0];
+                                // Check if it's a new message from someone else
+                                if (
+                                    typeof latestMsg.content === "string" &&
+                                    latestMsg.senderInboxId !==
+                                        clientRef.current.inboxId
+                                ) {
+                                    const msgKey = `${convo.id}-${latestMsg.id}`;
+                                    const seenKey = `xmtp_seen_${msgKey}`;
 
-                                // Check if we've already notified about this message
-                                if (!sessionStorage.getItem(seenKey)) {
-                                    sessionStorage.setItem(seenKey, "1");
+                                    // Check if we've already notified about this message
+                                    if (!sessionStorage.getItem(seenKey)) {
+                                        sessionStorage.setItem(seenKey, "1");
 
-                                    // Find peer address
-                                    let peerAddress =
-                                        conversationToPeerRef.current[convo.id];
-                                    if (
-                                        !peerAddress &&
-                                        latestMsg.senderInboxId
-                                    ) {
-                                        peerAddress =
-                                            inboxIdToAddressRef.current[
-                                                latestMsg.senderInboxId
+                                        // Find peer address
+                                        let peerAddress =
+                                            conversationToPeerRef.current[
+                                                convo.id
                                             ];
-                                    }
+                                        if (
+                                            !peerAddress &&
+                                            latestMsg.senderInboxId
+                                        ) {
+                                            peerAddress =
+                                                inboxIdToAddressRef.current[
+                                                    latestMsg.senderInboxId
+                                                ];
+                                        }
 
-                                    if (peerAddress) {
-                                        console.log(
-                                            "[XMTP Poll] New message detected from:",
-                                            peerAddress
-                                        );
+                                        if (peerAddress) {
+                                            console.log(
+                                                "[XMTP Poll] New message detected from:",
+                                                peerAddress
+                                            );
 
-                                        setUnreadCounts((prev) => ({
-                                            ...prev,
-                                            [peerAddress.toLowerCase()]:
-                                                (prev[
-                                                    peerAddress.toLowerCase()
-                                                ] || 0) + 1,
-                                        }));
+                                            setUnreadCounts((prev) => ({
+                                                ...prev,
+                                                [peerAddress.toLowerCase()]:
+                                                    (prev[
+                                                        peerAddress.toLowerCase()
+                                                    ] || 0) + 1,
+                                            }));
 
-                                        newMessageCallbacksRef.current.forEach(
-                                            (callback) => {
-                                                callback({
-                                                    senderAddress: peerAddress,
-                                                    content: latestMsg.content,
-                                                    conversationId: convo.id,
-                                                });
-                                            }
-                                        );
+                                            newMessageCallbacksRef.current.forEach(
+                                                (callback) => {
+                                                    callback({
+                                                        senderAddress:
+                                                            peerAddress,
+                                                        content:
+                                                            latestMsg.content,
+                                                        conversationId:
+                                                            convo.id,
+                                                    });
+                                                }
+                                            );
+                                        }
                                     }
                                 }
                             }
+                        } catch (convoErr) {
+                            // Silently skip inactive groups or other conversation errors
+                            // This handles "Group is inactive" errors gracefully
+                            console.debug(
+                                "[XMTP Poll] Skipping conversation",
+                                convo.id,
+                                "- may be inactive"
+                            );
                         }
                     }
                 } catch (err) {
-                    console.error("[XMTP Poll] Error:", err);
+                    // Only log unexpected errors, not routine sync issues
+                    const errMsg = err instanceof Error ? err.message : "";
+                    if (!errMsg.includes("inactive")) {
+                        console.error("[XMTP Poll] Error:", err);
+                    }
                 }
             }, 5000);
 

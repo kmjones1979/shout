@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { type Address } from "viem";
 import { supabase, isSupabaseConfigured } from "@/config/supabase";
+import { normalizeAddress } from "@/utils/address";
 import { useENS } from "./useENS";
 
 export type FriendRequest = {
@@ -30,7 +30,7 @@ export type Friend = {
     reachUsername?: string | null;
 };
 
-export function useFriendRequests(userAddress: Address | null) {
+export function useFriendRequests(userAddress: string | null) {
     const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>(
         []
     );
@@ -56,7 +56,7 @@ export function useFriendRequests(userAddress: Address | null) {
 
         setIsLoading(true);
         try {
-            const normalizedAddress = userAddress.toLowerCase();
+            const normalizedAddress = normalizeAddress(userAddress);
             console.log("[fetchData] Fetching for address:", normalizedAddress);
 
             // Fetch incoming requests
@@ -143,7 +143,7 @@ export function useFriendRequests(userAddress: Address | null) {
                                 .select("username")
                                 .eq(
                                     "wallet_address",
-                                    friend.friend_address.toLowerCase()
+                                    normalizeAddress(friend.friend_address)
                                 )
                                 .maybeSingle();
                             reachUsername = usernameData?.username || null;
@@ -183,7 +183,7 @@ export function useFriendRequests(userAddress: Address | null) {
     useEffect(() => {
         if (!userAddress || !isSupabaseConfigured || !supabase) return;
 
-        const normalizedAddress = userAddress.toLowerCase();
+        const normalizedAddress = normalizeAddress(userAddress);
 
         const channel = supabase
             .channel("friend_requests_changes")
@@ -248,8 +248,8 @@ export function useFriendRequests(userAddress: Address | null) {
             setError(null);
 
             try {
-                const normalizedFrom = userAddress.toLowerCase();
-                const normalizedTo = toAddress.toLowerCase();
+                const normalizedFrom = normalizeAddress(userAddress);
+                const normalizedTo = normalizeAddress(toAddress);
 
                 console.log("[sendFriendRequest] Normalized addresses:", {
                     normalizedFrom,
@@ -401,7 +401,7 @@ export function useFriendRequests(userAddress: Address | null) {
 
             setIsLoading(true);
             try {
-                const normalizedAddress = userAddress.toLowerCase();
+                const normalizedAddress = normalizeAddress(userAddress);
 
                 // Get the request
                 const { data: request } = await supabase
@@ -494,7 +494,7 @@ export function useFriendRequests(userAddress: Address | null) {
                 const friend = friends.find((f) => f.id === friendId);
                 if (!friend) return false;
 
-                const normalizedAddress = userAddress.toLowerCase();
+                const normalizedAddress = normalizeAddress(userAddress);
 
                 // Remove both directions of friendship
                 await supabase

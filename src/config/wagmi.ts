@@ -13,8 +13,8 @@ if (!projectId) {
     );
 }
 
-// Networks supported - mainnet is first (default) for best ENS/XMTP experience
-export const networks = [mainnet, sepolia, base, baseSepolia];
+// EVM Networks
+export const evmNetworks = [mainnet, sepolia, base, baseSepolia];
 
 // Custom localStorage wrapper for PWA persistence
 const localStorageWrapper = {
@@ -32,14 +32,14 @@ const localStorageWrapper = {
     },
 };
 
-// Create wagmiAdapter with localStorage for PWA session persistence
+// Create wagmiAdapter for EVM chains with localStorage for PWA session persistence
 export const wagmiAdapter = new WagmiAdapter({
     storage: createStorage({
         storage: localStorageWrapper,
     }),
     ssr: true,
     projectId: projectId || "demo",
-    networks,
+    networks: evmNetworks,
     transports: {
         [mainnet.id]: http(),
         [sepolia.id]: http(),

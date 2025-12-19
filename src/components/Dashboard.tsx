@@ -39,9 +39,13 @@ import { useGroupCallSignaling } from "@/hooks/useGroupCallSignaling";
 import { useGroupInvitations } from "@/hooks/useGroupInvitations";
 import { GroupInvitations } from "./GroupInvitations";
 
+import { type WalletType } from "@/hooks/useWalletType";
+
 type DashboardProps = {
-    userAddress: Address;
+    userAddress: string; // Can be EVM (0x...) or Solana address
     onLogout: () => void;
+    isPasskeyUser?: boolean;
+    walletType: WalletType;
 };
 
 // Convert Friend from useFriendRequests to the format FriendsList expects
@@ -60,7 +64,12 @@ function DashboardContent({
     userAddress,
     onLogout,
     isPasskeyUser,
-}: DashboardProps & { isPasskeyUser?: boolean }) {
+    walletType,
+}: DashboardProps) {
+    const isSolanaUser = walletType === "solana";
+    // EVM address for hooks that require it
+    // For Solana users, pass null to disable EVM-specific features
+    const evmAddress = isSolanaUser ? null : (userAddress as `0x${string}`);
     const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
     const [isUsernameModalOpen, setIsUsernameModalOpen] = useState(false);
     const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
@@ -149,10 +158,10 @@ function DashboardContent({
         }
     }, [isProfileMenuOpen]);
 
-    // Username hook
+    // Username hook - works for both EVM and Solana addresses
     const { username: reachUsername, claimUsername } = useUsername(userAddress);
 
-    // Phone verification hook
+    // Phone verification hook - works for both EVM and Solana addresses
     const { phoneNumber: verifiedPhone, isVerified: isPhoneVerified } =
         usePhoneVerification(userAddress);
 
@@ -273,24 +282,42 @@ function DashboardContent({
         clearRemoteHangup,
     } = useCallSignaling(userAddress);
 
-    const {
-        isInitialized: isXMTPInitialized,
-        isInitializing: isXMTPInitializing,
-        error: xmtpError,
-        unreadCounts,
-        initialize: initializeXMTP,
-        markAsRead,
-        onNewMessage,
-        canMessageBatch,
-        revokeAllInstallations,
-        // Group methods
-        createGroup,
-        getGroups,
-        markGroupAsRead,
-        joinGroupById,
-        addGroupMembers,
-        leaveGroup,
-    } = useXMTPContext();
+    // XMTP is only available for EVM users (not Solana)
+    // Use a safe wrapper that returns defaults for Solana users
+    const xmtpContext = isSolanaUser ? null : useXMTPContext();
+
+    const isXMTPInitialized = xmtpContext?.isInitialized ?? false;
+    const isXMTPInitializing = xmtpContext?.isInitializing ?? false;
+    const xmtpError = xmtpContext?.error ?? null;
+    const unreadCounts = xmtpContext?.unreadCounts ?? {};
+    const initializeXMTP = xmtpContext?.initialize ?? (() => Promise.resolve());
+    const markAsRead = xmtpContext?.markAsRead ?? (() => {});
+    const onNewMessage = xmtpContext?.onNewMessage ?? (() => () => {});
+    const canMessageBatch =
+        xmtpContext?.canMessageBatch ??
+        (() => Promise.resolve({} as Record<string, boolean>));
+    const revokeAllInstallations =
+        xmtpContext?.revokeAllInstallations ?? (() => Promise.resolve(false));
+    // Group methods
+    const createGroup =
+        xmtpContext?.createGroup ??
+        (() =>
+            Promise.resolve({
+                success: false,
+                error: "XMTP not available for Solana wallets",
+            }));
+    const getGroups = xmtpContext?.getGroups ?? (() => Promise.resolve([]));
+    const markGroupAsRead = xmtpContext?.markGroupAsRead ?? (() => {});
+    const joinGroupById =
+        xmtpContext?.joinGroupById ??
+        (() =>
+            Promise.resolve({
+                success: false,
+                error: "XMTP not available for Solana wallets",
+            }));
+    const addGroupMembers =
+        xmtpContext?.addGroupMembers ?? (() => Promise.resolve(false));
+    const leaveGroup = xmtpContext?.leaveGroup ?? (() => Promise.resolve());
 
     // State for revoking XMTP installations
     const [isRevokingInstallations, setIsRevokingInstallations] =
@@ -328,8 +355,11 @@ function DashboardContent({
         Record<string, boolean>
     >({});
 
-    // Auto-initialize XMTP after a short delay
+    // Auto-initialize XMTP after a short delay (EVM users only)
     useEffect(() => {
+        // Skip for Solana users - XMTP not supported
+        if (isSolanaUser) return;
+
         if (
             !isXMTPInitialized &&
             !isXMTPInitializing &&
@@ -342,18 +372,18 @@ function DashboardContent({
             }, 1500);
             return () => clearTimeout(timer);
         }
-    }, [isXMTPInitialized, isXMTPInitializing, initializeXMTP]);
+    }, [isSolanaUser, isXMTPInitialized, isXMTPInitializing, initializeXMTP]);
 
-    // Show XMTP success message briefly when initialized
+    // Show XMTP success message briefly when initialized (EVM users only)
     useEffect(() => {
-        if (isXMTPInitialized && !isPasskeyUser) {
+        if (isXMTPInitialized && !isPasskeyUser && !isSolanaUser) {
             setShowXMTPSuccess(true);
             const timer = setTimeout(() => {
                 setShowXMTPSuccess(false);
             }, 4000); // Hide after 4 seconds
             return () => clearTimeout(timer);
         }
-    }, [isXMTPInitialized, isPasskeyUser]);
+    }, [isXMTPInitialized, isPasskeyUser, isSolanaUser]);
 
     // Handler to switch to mainnet
     const handleSwitchToMainnet = async () => {
@@ -394,9 +424,9 @@ function DashboardContent({
         addedAt: f.created_at,
     }));
 
-    // Check which friends can receive XMTP messages
+    // Check which friends can receive XMTP messages (EVM users only)
     useEffect(() => {
-        if (isPasskeyUser || friends.length === 0) {
+        if (isPasskeyUser || isSolanaUser || friends.length === 0) {
             return;
         }
 
@@ -407,11 +437,11 @@ function DashboardContent({
         };
 
         checkFriendsXMTP();
-    }, [friends, isPasskeyUser, canMessageBatch]);
+    }, [friends, isPasskeyUser, isSolanaUser, canMessageBatch]);
 
-    // Load groups when XMTP is initialized
+    // Load groups when XMTP is initialized (EVM users only)
     useEffect(() => {
-        if (!isXMTPInitialized || isPasskeyUser) return;
+        if (!isXMTPInitialized || isPasskeyUser || isSolanaUser) return;
 
         const loadGroups = async () => {
             setIsLoadingGroups(true);
@@ -426,7 +456,7 @@ function DashboardContent({
         };
 
         loadGroups();
-    }, [isXMTPInitialized, isPasskeyUser, getGroups]);
+    }, [isXMTPInitialized, isPasskeyUser, isSolanaUser, getGroups]);
 
     // Handler to create a new group
     const handleCreateGroup = async (
@@ -696,9 +726,9 @@ function DashboardContent({
         rejectCall,
     ]);
 
-    // Listen for new messages and show toast + notification
+    // Listen for new messages and show toast + notification (EVM users only)
     useEffect(() => {
-        if (!isXMTPInitialized) return;
+        if (!isXMTPInitialized || isSolanaUser) return;
 
         const unsubscribe = onNewMessage(({ senderAddress, content }) => {
             // Find friend info for the sender
@@ -1272,8 +1302,48 @@ function DashboardContent({
                                                     )}
                                                 </button>
 
-                                                {/* ENS Name */}
-                                                {userENS.ensName ? (
+                                                {/* ENS/SNS Name Service */}
+                                                {isSolanaUser ? (
+                                                    // Solana users - show SNS link
+                                                    <a
+                                                        href="https://www.sns.id/"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={() =>
+                                                            setIsProfileMenuOpen(
+                                                                false
+                                                            )
+                                                        }
+                                                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left border-t border-zinc-800"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                                                            <svg
+                                                                className="w-4 h-4 text-purple-400"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                                stroke="currentColor"
+                                                            >
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    strokeWidth={
+                                                                        2
+                                                                    }
+                                                                    d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                                                                />
+                                                            </svg>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-white text-sm font-medium">
+                                                                SNS
+                                                            </p>
+                                                            <p className="text-purple-400 text-xs">
+                                                                Get an SNS →
+                                                            </p>
+                                                        </div>
+                                                    </a>
+                                                ) : userENS.ensName ? (
+                                                    // EVM users with ENS
                                                     <div className="px-4 py-3 flex items-center gap-3 border-t border-zinc-800">
                                                         <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
                                                             <svg
@@ -1304,6 +1374,7 @@ function DashboardContent({
                                                         </div>
                                                     </div>
                                                 ) : (
+                                                    // EVM users without ENS
                                                     <a
                                                         href="https://app.ens.domains/"
                                                         target="_blank"
@@ -1634,8 +1705,47 @@ function DashboardContent({
                         </motion.div>
                     )}
 
-                    {/* XMTP Status Banner - hidden for passkey users */}
-                    {!isXMTPInitialized && !isPasskeyUser && (
+                    {/* Solana User Notice - Chat not available */}
+                    {isSolanaUser && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mb-6"
+                        >
+                            <div className="bg-gradient-to-r from-purple-500/20 to-violet-500/20 border border-purple-500/30 rounded-xl p-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                                        <svg
+                                            className="w-5 h-5 text-purple-400"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-purple-200 font-medium">
+                                            Solana Wallet Connected
+                                        </p>
+                                        <p className="text-purple-200/70 text-sm mt-1">
+                                            Voice calls are available! Encrypted
+                                            chat requires an Ethereum wallet
+                                            (XMTP limitation).
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* XMTP Status Banner - hidden for passkey users and Solana users */}
+                    {!isXMTPInitialized && !isPasskeyUser && !isSolanaUser && (
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -1843,8 +1953,12 @@ function DashboardContent({
                                 onChat={isPasskeyUser ? undefined : handleChat}
                                 onRemove={handleRemoveFriend}
                                 isCallActive={callState !== "idle"}
-                                unreadCounts={isPasskeyUser ? {} : unreadCounts}
-                                hideChat={isPasskeyUser}
+                                unreadCounts={
+                                    isPasskeyUser || isSolanaUser
+                                        ? {}
+                                        : unreadCounts
+                                }
+                                hideChat={isPasskeyUser || isSolanaUser}
                                 friendsXMTPStatus={friendsXMTPStatus}
                             />
                         </div>
@@ -1853,6 +1967,7 @@ function DashboardContent({
                     {/* Group Invitations Section */}
                     {isXMTPInitialized &&
                         !isPasskeyUser &&
+                        !isSolanaUser &&
                         pendingInvitations.length > 0 && (
                             <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden mt-6 p-6">
                                 <GroupInvitations
@@ -1878,8 +1993,8 @@ function DashboardContent({
                             </div>
                         )}
 
-                    {/* Groups Section - Only show if XMTP is enabled */}
-                    {isXMTPInitialized && !isPasskeyUser && (
+                    {/* Groups Section - Only show if XMTP is enabled (EVM users only) */}
+                    {isXMTPInitialized && !isPasskeyUser && !isSolanaUser && (
                         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden mt-6">
                             <div className="p-6 border-b border-zinc-800">
                                 <div className="flex items-center justify-between">
@@ -2046,15 +2161,17 @@ function DashboardContent({
                     )}
             </AnimatePresence>
 
-            {/* Chat Modal */}
-            <ChatModal
-                isOpen={!!chatFriend}
-                onClose={() => setChatFriend(null)}
-                userAddress={userAddress}
-                peerAddress={chatFriend?.address || ("0x" as Address)}
-                peerName={chatFriend?.ensName || chatFriend?.nickname}
-                peerAvatar={chatFriend?.avatar}
-            />
+            {/* Chat Modal - EVM users only */}
+            {!isSolanaUser && evmAddress && (
+                <ChatModal
+                    isOpen={!!chatFriend}
+                    onClose={() => setChatFriend(null)}
+                    userAddress={evmAddress}
+                    peerAddress={chatFriend?.address || ("0x" as Address)}
+                    peerName={chatFriend?.ensName || chatFriend?.nickname}
+                    peerAvatar={chatFriend?.avatar}
+                />
+            )}
 
             {/* Username Claim Modal */}
             <UsernameClaimModal
@@ -2101,7 +2218,7 @@ function DashboardContent({
             <QRCodeModal
                 isOpen={isQRCodeModalOpen}
                 onClose={() => setIsQRCodeModalOpen(false)}
-                address={userAddress}
+                address={userAddress as `0x${string}`}
                 ensName={userENS.ensName}
                 reachUsername={reachUsername || null}
                 avatar={userENS.avatar}
@@ -2125,21 +2242,23 @@ function DashboardContent({
                 isCreating={isCreatingGroup}
             />
 
-            {/* Group Chat Modal */}
-            <GroupChatModal
-                isOpen={!!selectedGroup}
-                onClose={() => setSelectedGroup(null)}
-                userAddress={userAddress}
-                group={selectedGroup}
-                friends={friendsListData}
-                onGroupDeleted={async () => {
-                    // Refresh groups list after leaving
-                    const fetchedGroups = await getGroups();
-                    setGroups(fetchedGroups);
-                }}
-                onStartCall={handleStartGroupCall}
-                hasActiveCall={callState !== "idle" || !!currentGroupCall}
-            />
+            {/* Group Chat Modal - EVM users only */}
+            {!isSolanaUser && evmAddress && (
+                <GroupChatModal
+                    isOpen={!!selectedGroup}
+                    onClose={() => setSelectedGroup(null)}
+                    userAddress={evmAddress}
+                    group={selectedGroup}
+                    friends={friendsListData}
+                    onGroupDeleted={async () => {
+                        // Refresh groups list after leaving
+                        const fetchedGroups = await getGroups();
+                        setGroups(fetchedGroups);
+                    }}
+                    onStartCall={handleStartGroupCall}
+                    hasActiveCall={callState !== "idle" || !!currentGroupCall}
+                />
+            )}
 
             {/* Group Call UI */}
             <AnimatePresence>
@@ -2147,7 +2266,7 @@ function DashboardContent({
                     <GroupCallUI
                         call={currentGroupCall}
                         participants={groupCallParticipants}
-                        userAddress={userAddress}
+                        userAddress={userAddress as `0x${string}`}
                         isMuted={isMuted}
                         isVideoOff={isVideoOff}
                         isScreenSharing={isScreenSharing}
@@ -2247,13 +2366,27 @@ export function Dashboard({
     userAddress,
     onLogout,
     isPasskeyUser,
-}: DashboardProps & { isPasskeyUser?: boolean }) {
-    return (
-        <XMTPProvider userAddress={userAddress}>
+    walletType,
+}: DashboardProps) {
+    // Only wrap with XMTPProvider for EVM users (XMTP doesn't support Solana)
+    if (walletType === "solana") {
+        return (
             <DashboardContent
                 userAddress={userAddress}
                 onLogout={onLogout}
                 isPasskeyUser={isPasskeyUser}
+                walletType={walletType}
+            />
+        );
+    }
+
+    return (
+        <XMTPProvider userAddress={userAddress as `0x${string}`}>
+            <DashboardContent
+                userAddress={userAddress}
+                onLogout={onLogout}
+                isPasskeyUser={isPasskeyUser}
+                walletType={walletType}
             />
         </XMTPProvider>
     );

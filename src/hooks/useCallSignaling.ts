@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { type Address } from "viem";
 import { supabase, isSupabaseConfigured } from "@/config/supabase";
 
 export type CallSignal = {
@@ -13,7 +12,7 @@ export type CallSignal = {
     created_at: string;
 };
 
-export function useCallSignaling(userAddress: Address | null) {
+export function useCallSignaling(userAddress: string | null) {
     const [incomingCall, setIncomingCall] = useState<CallSignal | null>(null);
     const [outgoingCall, setOutgoingCall] = useState<CallSignal | null>(null);
     const [activeCallId, setActiveCallId] = useState<string | null>(null);

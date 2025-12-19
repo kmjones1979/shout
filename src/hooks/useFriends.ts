@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { type Address } from "viem";
 import { supabase, isSupabaseConfigured } from "@/config/supabase";
 import { useENS, type ENSResolution } from "./useENS";
 
 export type Friend = {
     id: string;
-    address: Address;
+    address: string; // Can be EVM or Solana address
     ensName: string | null;
     avatar: string | null;
     nickname: string | null;
@@ -24,7 +23,7 @@ export type IncomingCall = {
 
 const FRIENDS_STORAGE_KEY = "reach_friends";
 
-export function useFriends(userAddress: Address | null) {
+export function useFriends(userAddress: string | null) {
     const [friends, setFriends] = useState<Friend[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -117,7 +116,7 @@ export function useFriends(userAddress: Address | null) {
 
                 const newFriend: Friend = {
                     id: crypto.randomUUID(),
-                    address: resolution.address,
+                    address: resolution.address as string,
                     ensName: resolution.ensName,
                     avatar: resolution.avatar,
                     nickname: nickname || null,

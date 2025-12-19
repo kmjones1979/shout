@@ -2,22 +2,32 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { useAccount, useDisconnect } from "wagmi";
-import { type Address } from "viem";
+import { useAccount } from "wagmi";
+import { useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import { PasskeyAuth } from "@/components/PasskeyAuth";
 import { WalletConnect } from "@/components/WalletConnect";
 import { Dashboard } from "@/components/Dashboard";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { Globe } from "@/components/Globe";
 import { usePasskeyContext } from "@/context/PasskeyProvider";
+import { useWalletType, type WalletType } from "@/hooks/useWalletType";
 
 export default function Home() {
+    // EVM wallet via wagmi
+    const { isReconnecting } = useAccount();
+    // AppKit disconnect (works for both EVM and Solana)
+    const { disconnect: walletDisconnect } = useDisconnect();
+
+    // Multi-chain wallet detection (EVM + Solana)
     const {
+        walletType,
         address: walletAddress,
         isConnected: isWalletConnected,
-        isReconnecting,
-    } = useAccount();
-    const { disconnect: walletDisconnect } = useDisconnect();
+    } = useWalletType();
+
+    // AppKit account for disconnect
+    const { isConnected: isAppKitConnected } = useAppKitAccount();
+
     const {
         isAuthenticated: isPasskeyAuthenticated,
         smartAccountAddress,
@@ -32,10 +42,10 @@ export default function Home() {
         setMounted(true);
     }, []);
 
-    // Give wagmi time to reconnect from storage
+    // Give wagmi/appkit time to reconnect from storage
     useEffect(() => {
         if (mounted) {
-            // Small delay to let wagmi reconnect from localStorage
+            // Small delay to let wallets reconnect from localStorage
             const timer = setTimeout(() => {
                 setInitializing(false);
             }, 500);
@@ -43,10 +53,15 @@ export default function Home() {
         }
     }, [mounted]);
 
-    // Determine the active user address
-    const userAddress: Address | null = mounted
+    // Determine the active user address (supports both EVM and Solana)
+    const userAddress: string | null = mounted
         ? smartAccountAddress || walletAddress || null
         : null;
+
+    // Determine wallet type for dashboard
+    const activeWalletType: WalletType = isPasskeyAuthenticated
+        ? "evm" // Passkey users always use EVM (smart accounts)
+        : walletType;
 
     const isAuthenticated =
         mounted && (isPasskeyAuthenticated || isWalletConnected);
@@ -56,8 +71,8 @@ export default function Home() {
         !mounted || initializing || isReconnecting || isPasskeyLoading;
 
     const handleLogout = () => {
-        // Disconnect wallet if connected
-        if (isWalletConnected) {
+        // Disconnect wallet if connected (works for both EVM and Solana via AppKit)
+        if (isAppKitConnected) {
             walletDisconnect();
         }
         // Logout passkey if authenticated
@@ -102,6 +117,7 @@ export default function Home() {
                 userAddress={userAddress}
                 onLogout={handleLogout}
                 isPasskeyUser={isPasskeyAuthenticated}
+                walletType={activeWalletType}
             />
         );
     }
@@ -180,7 +196,7 @@ export default function Home() {
                         transition={{ delay: 0.4 }}
                         className="text-zinc-300 text-lg max-w-md mx-auto drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
                     >
-                        Voice calls and chat over Ethereum. Connect your wallet
+                        Voice calls over Ethereum & Solana. Connect your wallet
                         and start talking.
                     </motion.p>
                 </motion.div>
