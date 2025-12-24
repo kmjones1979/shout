@@ -7,6 +7,19 @@ import { useXMTPContext } from "@/context/WakuProvider";
 import { PixelArtEditor } from "./PixelArtEditor";
 import { PixelArtImage } from "./PixelArtImage";
 import { useReactions, REACTION_EMOJIS } from "@/hooks/useReactions";
+import { EmojiPicker, QuickReactionPicker } from "./EmojiPicker";
+import { LinkPreview, detectUrls } from "./LinkPreview";
+import {
+    MessageStatusIndicator,
+    TypingIndicator,
+    EncryptionIndicator,
+} from "./MessageStatus";
+import {
+    useTypingIndicator,
+    useReadReceipts,
+    useMessageReactions,
+    MESSAGE_REACTION_EMOJIS,
+} from "@/hooks/useChatFeatures";
 
 type ChatModalProps = {
     isOpen: boolean;
@@ -46,10 +59,34 @@ export function ChatModal({
     const [showReactionPicker, setShowReactionPicker] = useState<string | null>(
         null
     );
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+    const [showMsgReactions, setShowMsgReactions] = useState<string | null>(null);
 
-    // Reactions hook
+    // Generate conversation ID for this chat
+    const conversationId = [userAddress, peerAddress]
+        .map((a) => a.toLowerCase())
+        .sort()
+        .join("-");
+
+    // Reactions hook (for pixel art)
     const { reactions, fetchReactions, toggleReaction } =
         useReactions(userAddress);
+
+    // New chat features
+    const { peerTyping, handleTyping, stopTyping } = useTypingIndicator(
+        userAddress,
+        conversationId
+    );
+    const { markMessagesRead, getMessageStatus } = useReadReceipts(
+        userAddress,
+        conversationId
+    );
+    const {
+        reactions: msgReactions,
+        fetchReactions: fetchMsgReactions,
+        toggleReaction: toggleMsgReaction,
+    } = useMessageReactions(userAddress, conversationId);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const streamRef = useRef<any>(null);
@@ -811,33 +848,130 @@ export function ChatModal({
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    <>
-                                                        <p className="break-words">
+                                                    <div className="relative group/msg">
+                                                        {/* Message Text */}
+                                                        <p className="break-words whitespace-pre-wrap">
                                                             {msg.content}
                                                         </p>
-                                                        <p
-                                                            className={`text-xs mt-1 ${
-                                                                isOwn
-                                                                    ? "text-[#FFF0E0]"
-                                                                    : "text-zinc-500"
-                                                            }`}
-                                                        >
-                                                            {msg.sentAt.toLocaleTimeString(
-                                                                [],
-                                                                {
+
+                                                        {/* Link Previews */}
+                                                        {detectUrls(msg.content).slice(0, 1).map((url) => (
+                                                            <LinkPreview key={url} url={url} compact />
+                                                        ))}
+
+                                                        {/* Message Reactions */}
+                                                        {msgReactions[msg.id]?.some(r => r.count > 0) && (
+                                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                                {msgReactions[msg.id]
+                                                                    ?.filter(r => r.count > 0)
+                                                                    .map((reaction) => (
+                                                                        <button
+                                                                            key={reaction.emoji}
+                                                                            onClick={() => toggleMsgReaction(msg.id, reaction.emoji)}
+                                                                            className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs transition-colors ${
+                                                                                reaction.hasReacted
+                                                                                    ? "bg-[#FB8D22]/30"
+                                                                                    : "bg-zinc-700/50 hover:bg-zinc-600/50"
+                                                                            }`}
+                                                                        >
+                                                                            <span>{reaction.emoji}</span>
+                                                                            <span className="text-[10px]">{reaction.count}</span>
+                                                                        </button>
+                                                                    ))}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Time + Read Receipt */}
+                                                        <div className={`flex items-center gap-1.5 mt-1 ${
+                                                            isOwn ? "justify-end" : ""
+                                                        }`}>
+                                                            <p className={`text-xs ${
+                                                                isOwn ? "text-[#FFF0E0]" : "text-zinc-500"
+                                                            }`}>
+                                                                {msg.sentAt.toLocaleTimeString([], {
                                                                     hour: "2-digit",
                                                                     minute: "2-digit",
-                                                                }
+                                                                })}
+                                                            </p>
+                                                            {isOwn && (
+                                                                <MessageStatusIndicator
+                                                                    status={getMessageStatus(msg.id, true, peerAddress)}
+                                                                />
                                                             )}
-                                                        </p>
-                                                    </>
+                                                        </div>
+
+                                                        {/* Hover Actions */}
+                                                        <div className={`absolute ${isOwn ? "left-0 -translate-x-full pr-2" : "right-0 translate-x-full pl-2"} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-1`}>
+                                                            {/* React Button */}
+                                                            <button
+                                                                onClick={() => setShowMsgReactions(showMsgReactions === msg.id ? null : msg.id)}
+                                                                className="w-7 h-7 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-sm"
+                                                                title="React"
+                                                            >
+                                                                😊
+                                                            </button>
+                                                            {/* Reply Button */}
+                                                            <button
+                                                                onClick={() => setReplyingTo(msg)}
+                                                                className="w-7 h-7 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center"
+                                                                title="Reply"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Quick Reaction Picker */}
+                                                        {showMsgReactions === msg.id && (
+                                                            <div className={`absolute ${isOwn ? "right-0" : "left-0"} -top-10`}>
+                                                                <QuickReactionPicker
+                                                                    isOpen={true}
+                                                                    onClose={() => setShowMsgReactions(null)}
+                                                                    onSelect={(emoji) => toggleMsgReaction(msg.id, emoji)}
+                                                                    emojis={MESSAGE_REACTION_EMOJIS}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
                                         </motion.div>
                                     );
                                 })}
                                 <div ref={messagesEndRef} />
+                                
+                                {/* Typing Indicator */}
+                                {peerTyping && (
+                                    <TypingIndicator name={displayName} />
+                                )}
                             </div>
+
+                            {/* E2E Encryption Notice */}
+                            <EncryptionIndicator />
+
+                            {/* Reply Preview */}
+                            {replyingTo && (
+                                <div className="px-4 py-2 bg-zinc-800/50 border-t border-zinc-700 flex items-center gap-2">
+                                    <div className="w-1 h-8 bg-[#FF5500] rounded-full" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-[#FF5500]">
+                                            Replying to {replyingTo.senderAddress.toLowerCase() === userAddress.toLowerCase() ? "yourself" : displayName}
+                                        </p>
+                                        <p className="text-xs text-zinc-400 truncate">
+                                            {replyingTo.content}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setReplyingTo(null)}
+                                        className="w-6 h-6 flex items-center justify-center text-zinc-500 hover:text-white"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            )}
 
                             {/* Input */}
                             <div className="p-4 border-t border-zinc-800">
@@ -864,21 +998,42 @@ export function ChatModal({
                                             />
                                         </svg>
                                     </button>
-                                    <input
-                                        type="text"
-                                        value={newMessage}
-                                        onChange={(e) =>
-                                            setNewMessage(e.target.value)
-                                        }
-                                        onKeyPress={handleKeyPress}
-                                        placeholder={
-                                            isInitialized
-                                                ? "Type a message..."
-                                                : "Initializing..."
-                                        }
-                                        disabled={!isInitialized || !!chatError}
-                                        className="flex-1 py-3 px-4 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#FF5500]/50 focus:ring-2 focus:ring-[#FF5500]/20 transition-all disabled:opacity-50"
-                                    />
+                                    <div className="flex-1 relative">
+                                        <input
+                                            type="text"
+                                            value={newMessage}
+                                            onChange={(e) => {
+                                                setNewMessage(e.target.value);
+                                                handleTyping();
+                                            }}
+                                            onKeyPress={handleKeyPress}
+                                            onBlur={stopTyping}
+                                            placeholder={
+                                                isInitialized
+                                                    ? "Type a message..."
+                                                    : "Initializing..."
+                                            }
+                                            disabled={!isInitialized || !!chatError}
+                                            className="w-full py-3 px-4 pr-10 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#FF5500]/50 focus:ring-2 focus:ring-[#FF5500]/20 transition-all disabled:opacity-50"
+                                        />
+                                        {/* Emoji Picker Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                                        >
+                                            😊
+                                        </button>
+                                        {/* Emoji Picker Dropdown */}
+                                        <EmojiPicker
+                                            isOpen={showEmojiPicker}
+                                            onClose={() => setShowEmojiPicker(false)}
+                                            onSelect={(emoji) => {
+                                                setNewMessage((prev) => prev + emoji);
+                                            }}
+                                            position="top"
+                                        />
+                                    </div>
                                     <button
                                         onClick={handleSend}
                                         disabled={
