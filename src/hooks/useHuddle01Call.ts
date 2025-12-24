@@ -169,11 +169,40 @@ export function useHuddle01Call(userAddress: string | null) {
             videoEl.srcObject = null;
             videoEl.remove();
             peerVideoElementsRef.current.delete(peerId);
-            console.log(`[Huddle01] Removed video element for peer ${peerId}`);
+            console.log(`[Huddle01] Removed tracked video element for peer ${peerId}`);
+        } else {
+            // Fallback for videos not tracked in map (backward compatibility with 1-on-1 calls)
+            // Try to find by data attribute or just clear all if only one video
+            if (remoteVideoRef.current) {
+                const videoByAttr = remoteVideoRef.current.querySelector(`video[data-peer-id="${peerId}"]`);
+                if (videoByAttr) {
+                    const stream = (videoByAttr as HTMLVideoElement).srcObject as MediaStream;
+                    if (stream) {
+                        stream.getTracks().forEach((t) => t.stop());
+                    }
+                    (videoByAttr as HTMLVideoElement).srcObject = null;
+                    videoByAttr.remove();
+                    console.log(`[Huddle01] Removed video by data-peer-id for ${peerId}`);
+                } else {
+                    // Last resort: if there's only one video, it must be the leaving peer's
+                    const allVideos = remoteVideoRef.current.querySelectorAll("video");
+                    if (allVideos.length === 1) {
+                        const video = allVideos[0] as HTMLVideoElement;
+                        const stream = video.srcObject as MediaStream;
+                        if (stream) {
+                            stream.getTracks().forEach((t) => t.stop());
+                        }
+                        video.srcObject = null;
+                        video.remove();
+                        console.log(`[Huddle01] Removed single video element (1-on-1 call cleanup)`);
+                    }
+                }
+            }
         }
         
         // Update state if no more remote videos
-        if (peerVideoElementsRef.current.size === 0) {
+        const remainingVideos = remoteVideoRef.current?.querySelectorAll("video").length || 0;
+        if (peerVideoElementsRef.current.size === 0 && remainingVideos === 0) {
             setState((prev) => ({ ...prev, isRemoteVideoOff: true }));
         }
     }, []);
