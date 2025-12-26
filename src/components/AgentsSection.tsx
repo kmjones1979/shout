@@ -5,14 +5,16 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAgents, Agent } from "@/hooks/useAgents";
 import { CreateAgentModal } from "./CreateAgentModal";
 import { AgentChatModal } from "./AgentChatModal";
+import { EditAgentModal } from "./EditAgentModal";
 
 interface AgentsSectionProps {
     userAddress: string;
 }
 
 export function AgentsSection({ userAddress }: AgentsSectionProps) {
-    const { agents, isLoading, error, createAgent, deleteAgent } = useAgents(userAddress);
+    const { agents, isLoading, error, createAgent, updateAgent, deleteAgent } = useAgents(userAddress);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(true);
@@ -35,6 +37,20 @@ export function AgentsSection({ userAddress }: AgentsSectionProps) {
     const handleOpenChat = (agent: Agent) => {
         setSelectedAgent(agent);
         setIsChatOpen(true);
+    };
+
+    const handleEditAgent = (agent: Agent) => {
+        setSelectedAgent(agent);
+        setIsEditModalOpen(true);
+    };
+
+    const handleSaveAgent = async (agentId: string, updates: {
+        name?: string;
+        personality?: string;
+        avatarEmoji?: string;
+        visibility?: "private" | "friends" | "public";
+    }) => {
+        await updateAgent(agentId, updates);
     };
 
     return (
@@ -167,6 +183,18 @@ export function AgentsSection({ userAddress }: AgentsSectionProps) {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
+                                                        handleEditAgent(agent);
+                                                    }}
+                                                    className="p-2 text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         handleDeleteAgent(agent);
                                                     }}
                                                     className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
@@ -206,6 +234,15 @@ export function AgentsSection({ userAddress }: AgentsSectionProps) {
                 }}
                 agent={selectedAgent}
                 userAddress={userAddress}
+            />
+            <EditAgentModal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setSelectedAgent(null);
+                }}
+                agent={selectedAgent}
+                onSave={handleSaveAgent}
             />
         </div>
     );
