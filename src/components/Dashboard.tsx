@@ -2833,20 +2833,20 @@ function DashboardContent({
                             </div>
 
                             <div className="p-6 space-y-2">
-                                {/* Alpha Channel - always show */}
+                                {/* Spritz Global Chat - always show */}
                                 <motion.button
                                     onClick={() => setIsAlphaChatOpen(true)}
                                     className={`w-full rounded-xl p-3 sm:p-4 transition-all text-left ${
                                         isAlphaMember 
                                             ? "bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50" 
-                                            : "bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 hover:border-purple-500/50"
+                                            : "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 hover:border-orange-500/50"
                                     }`}
                                     whileTap={{ scale: 0.99 }}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="relative flex-shrink-0">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                                                <span className="text-lg">🚀</span>
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                                                <span className="text-lg">🍊</span>
                                             </div>
                                             {isAlphaMember && alphaUnreadCount > 0 && (
                                                 <div className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-red-500 rounded-full flex items-center justify-center">
@@ -2859,7 +2859,7 @@ function DashboardContent({
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <p className="text-white font-medium truncate text-sm sm:text-base">
-                                                    Alpha Channel
+                                                    Spritz Global Chat
                                                 </p>
                                                 {isAlphaMember && alphaMembership?.notifications_muted && (
                                                     <svg className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2877,7 +2877,7 @@ function DashboardContent({
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                             </svg>
                                         ) : (
-                                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
+                                            <span className="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs font-medium rounded-full">
                                                 Join
                                             </span>
                                         )}
@@ -2925,14 +2925,14 @@ function DashboardContent({
                                     className={`w-full rounded-xl p-3 sm:p-4 transition-all text-left ${
                                         isAlphaMember 
                                             ? "bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50" 
-                                            : "bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 hover:border-purple-500/50"
+                                            : "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 hover:border-orange-500/50"
                                     }`}
                                     whileTap={{ scale: 0.99 }}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className="relative flex-shrink-0">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                                                <span className="text-lg">🚀</span>
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                                                <span className="text-lg">🍊</span>
                                             </div>
                                             {isAlphaMember && alphaUnreadCount > 0 && (
                                                 <div className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-red-500 rounded-full flex items-center justify-center">
@@ -2945,7 +2945,7 @@ function DashboardContent({
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <p className="text-white font-medium truncate text-sm sm:text-base">
-                                                    Alpha Channel
+                                                    Spritz Global Chat
                                                 </p>
                                                 {isAlphaMember && alphaMembership?.notifications_muted && (
                                                     <svg className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2963,7 +2963,7 @@ function DashboardContent({
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                             </svg>
                                         ) : (
-                                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
+                                            <span className="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs font-medium rounded-full">
                                                 Join
                                             </span>
                                         )}

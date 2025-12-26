@@ -94,7 +94,7 @@ export function Leaderboard({ userAddress, limit = 10 }: LeaderboardProps) {
     useEffect(() => {
         const resolveAll = async () => {
             const toResolve = entries.filter(
-                e => !e.username && !e.ensName && !resolvedNames[e.address.toLowerCase()]
+                e => !e.username && !e.ensName && !resolveQueueRef.current.has(e.address.toLowerCase())
             );
             
             if (toResolve.length === 0) return;
@@ -106,11 +106,11 @@ export function Leaderboard({ userAddress, limit = 10 }: LeaderboardProps) {
 
             for (const entry of toResolve) {
                 const addr = entry.address.toLowerCase();
-                if (resolveQueueRef.current.has(addr)) continue;
                 
                 const cached = cache[addr];
                 if (cached && Date.now() - cached.timestamp < ENS_CACHE_TTL) {
                     newResolved[addr] = cached.ensName;
+                    resolveQueueRef.current.add(addr); // Mark as processed
                 } else {
                     needsResolving.push(entry);
                     resolveQueueRef.current.add(addr);
@@ -128,12 +128,11 @@ export function Leaderboard({ userAddress, limit = 10 }: LeaderboardProps) {
                 const addr = entry.address.toLowerCase();
                 const ensName = await resolveENS(entry.address);
                 setResolvedNames(prev => ({ ...prev, [addr]: ensName }));
-                resolveQueueRef.current.delete(addr);
             }
         };
 
         resolveAll();
-    }, [entries, resolvedNames, resolveENS]);
+    }, [entries, resolveENS]);
 
     const fetchLeaderboard = useCallback(async () => {
         try {

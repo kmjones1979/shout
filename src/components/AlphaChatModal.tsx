@@ -203,8 +203,8 @@ export function AlphaChatModal({
 
                                 <div className="flex-1 min-w-0">
                                     <h2 className="text-white font-semibold flex items-center gap-2">
-                                        <span className="text-lg">🚀</span>
-                                        Alpha Channel
+                                        <span className="text-lg">🍊</span>
+                                        Spritz Global Chat
                                     </h2>
                                     <p className="text-zinc-500 text-sm">
                                         {memberCountDisplay}
@@ -324,7 +324,7 @@ export function AlphaChatModal({
                                 )}
 
                                 {/* Alpha Icon */}
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
                                     <span className="text-lg">α</span>
                                 </div>
                             </div>
@@ -333,11 +333,11 @@ export function AlphaChatModal({
                             {!isMember && !isLoading && (
                                 <div className="flex-1 flex items-center justify-center p-8">
                                     <div className="text-center">
-                                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center mx-auto mb-4">
-                                            <span className="text-4xl">🚀</span>
+                                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center mx-auto mb-4">
+                                            <span className="text-4xl">🍊</span>
                                         </div>
                                         <h3 className="text-white text-xl font-semibold mb-2">
-                                            Join the Alpha Channel
+                                            Join the Spritz Global Chat
                                         </h3>
                                         <p className="text-zinc-400 text-sm mb-6 max-w-xs">
                                             Connect with the Spritz community! Get updates, share ideas, and meet other users.
@@ -345,7 +345,7 @@ export function AlphaChatModal({
                                         <button
                                             onClick={handleJoin}
                                             disabled={isJoining}
-                                            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+                                            className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
                                         >
                                             {isJoining ? "Joining..." : "Join Channel"}
                                         </button>
@@ -359,12 +359,12 @@ export function AlphaChatModal({
                                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                                         {isLoading ? (
                                             <div className="flex items-center justify-center h-full">
-                                                <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                                                <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                                             </div>
                                         ) : messages.length === 0 ? (
                                             <div className="flex items-center justify-center h-full">
                                                 <div className="text-center">
-                                                    <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-4">
+                                                    <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-4">
                                                         <span className="text-2xl">💬</span>
                                                     </div>
                                                     <p className="text-zinc-400">
@@ -402,7 +402,7 @@ export function AlphaChatModal({
                                                                         className="w-8 h-8 rounded-full object-cover"
                                                                     />
                                                                 ) : (
-                                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold">
+                                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white text-xs font-bold">
                                                                         {formatSender(msg.sender_address)
                                                                             .slice(0, 2)
                                                                             .toUpperCase()}
@@ -414,12 +414,12 @@ export function AlphaChatModal({
                                                         <div
                                                             className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                                                                 isOwn
-                                                                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-br-md"
+                                                                    ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-br-md"
                                                                     : "bg-zinc-800 text-white rounded-bl-md"
                                                             }`}
                                                         >
                                                             {!isOwn && (
-                                                                <p className="text-xs text-purple-300 mb-1 font-medium">
+                                                                <p className="text-xs text-orange-300 mb-1 font-medium">
                                                                     {formatSender(msg.sender_address)}
                                                                 </p>
                                                             )}
@@ -460,7 +460,7 @@ export function AlphaChatModal({
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={() => setShowPixelArt(true)}
-                                                className="p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-purple-400 transition-colors"
+                                                className="p-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-orange-400 transition-colors"
                                                 title="Send Pixel Art"
                                             >
                                                 <svg
@@ -484,12 +484,12 @@ export function AlphaChatModal({
                                                 onChange={(e) => setNewMessage(e.target.value)}
                                                 onKeyPress={handleKeyPress}
                                                 placeholder="Message the community..."
-                                                className="flex-1 py-3 px-4 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                                                className="flex-1 py-3 px-4 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/20 transition-all"
                                             />
                                             <button
                                                 onClick={handleSend}
                                                 disabled={!newMessage.trim() || isSending}
-                                                className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                className="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                                 {isSending ? (
                                                     <svg
