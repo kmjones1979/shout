@@ -1420,19 +1420,44 @@ export function WakuProvider({
                 // Save to Supabase (so all members can see it)
                 if (supabase) {
                     try {
-                        // Insert the group
-                        const { error: groupError } = await supabase
+                        // Insert the group (try with emoji first, fallback without)
+                        let groupError;
+                        
+                        // Try with emoji first
+                        const insertData: Record<string, unknown> = {
+                            id: groupId,
+                            name: groupName,
+                            created_by: userAddress.toLowerCase(),
+                            symmetric_key: symmetricKeyHex,
+                        };
+                        
+                        // Only include emoji if provided
+                        if (emoji) {
+                            insertData.emoji = emoji;
+                        }
+                        
+                        const { error: err1 } = await supabase
                             .from("shout_groups")
-                            .insert({
-                                id: groupId,
-                                name: groupName,
-                                emoji: emoji || null,
-                                created_by: userAddress.toLowerCase(),
-                                symmetric_key: symmetricKeyHex,
-                            });
+                            .insert(insertData);
+                        
+                        groupError = err1;
+                        
+                        // If failed and we had emoji, try without emoji (column might not exist)
+                        if (groupError && emoji) {
+                            console.warn("[Waku] Insert with emoji failed, trying without:", groupError.message || groupError);
+                            const { error: err2 } = await supabase
+                                .from("shout_groups")
+                                .insert({
+                                    id: groupId,
+                                    name: groupName,
+                                    created_by: userAddress.toLowerCase(),
+                                    symmetric_key: symmetricKeyHex,
+                                });
+                            groupError = err2;
+                        }
 
                         if (groupError) {
-                            console.error("[Waku] Error saving group to Supabase:", groupError);
+                            console.error("[Waku] Error saving group to Supabase:", groupError.message || groupError);
                         } else {
                             // Insert all members
                             const memberInserts = allMembers.map((addr) => ({
