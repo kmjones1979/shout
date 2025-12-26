@@ -483,13 +483,13 @@ function DashboardContent({
     const friendsListData: FriendsListFriend[] = useMemo(
         () =>
             friends.map((f) => ({
-                id: f.id,
-                address: f.friend_address as Address,
-                ensName: f.ensName || null,
-                avatar: f.avatar || null,
-                nickname: f.nickname,
-                reachUsername: f.reachUsername || null,
-                addedAt: f.created_at,
+        id: f.id,
+        address: f.friend_address as Address,
+        ensName: f.ensName || null,
+        avatar: f.avatar || null,
+        nickname: f.nickname,
+        reachUsername: f.reachUsername || null,
+        addedAt: f.created_at,
             })),
         [friends]
     );
@@ -976,13 +976,28 @@ function DashboardContent({
             }
             // Join the call channel with video if it's a video call
             const withVideo = callType === "video";
+            
+            // Detect if this is a decentralized (Huddle01) or centralized (Agora) call
+            // Agora channels start with "spritz_", Huddle01 uses room IDs
+            const isDecentralizedCall = !channelName.startsWith("spritz_");
+            
             console.log(
                 "[Dashboard] Accepting call, type:",
                 callType,
                 "withVideo:",
-                withVideo
+                withVideo,
+                "isDecentralized:",
+                isDecentralizedCall
             );
-            const success = await joinCall(channelName, undefined, withVideo);
+            
+            // Use the appropriate call provider based on the channel type
+            let success: boolean;
+            if (isDecentralizedCall && isHuddle01Configured) {
+                success = await huddle01Call.joinCall(channelName, undefined, withVideo);
+            } else {
+                success = await agoraCall.joinCall(channelName, undefined, withVideo);
+            }
+            
             if (success && userSettings.soundEnabled) {
                 notifyCallConnected();
             }
@@ -2563,6 +2578,7 @@ function DashboardContent({
                     }
                     callerAvatar={incomingCallFriend?.avatar}
                     callType={incomingCall.call_type || "audio"}
+                    isDecentralized={!incomingCall.channel_name.startsWith("spritz_")}
                     onAccept={handleAcceptCall}
                     onReject={handleRejectCall}
                 />

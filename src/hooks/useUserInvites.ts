@@ -33,16 +33,18 @@ export function useUserInvites(walletAddress: string | null) {
     // Load invites
     const loadInvites = useCallback(async () => {
         if (!walletAddress) {
-            setState(prev => ({ ...prev, isLoading: false }));
+            setState((prev) => ({ ...prev, isLoading: false }));
             return;
         }
 
         try {
-            const response = await fetch(`/api/invites?address=${walletAddress}`);
+            const response = await fetch(
+                `/api/invites?address=${walletAddress}`
+            );
             const data = await response.json();
 
             if (!response.ok) {
-                setState(prev => ({
+                setState((prev) => ({
                     ...prev,
                     isLoading: false,
                     error: data.error || "Failed to load invites",
@@ -60,7 +62,7 @@ export function useUserInvites(walletAddress: string | null) {
             });
         } catch (err) {
             console.error("[Invites] Load error:", err);
-            setState(prev => ({
+            setState((prev) => ({
                 ...prev,
                 isLoading: false,
                 error: "Failed to load invites",
@@ -78,41 +80,52 @@ export function useUserInvites(walletAddress: string | null) {
     }, []);
 
     // Generate invite message with blurb
-    const getInviteMessage = useCallback((code: string) => {
-        return `🚀 You're invited to Spritz - the censorship resistant chat app for Web3!\n\n${getInviteLink(code)}`;
-    }, [getInviteLink]);
+    const getInviteMessage = useCallback(
+        (code: string) => {
+            return `🚀 You're invited to Spritz - the censorship resistant chat app for Web3!\n\n${getInviteLink(
+                code
+            )}`;
+        },
+        [getInviteLink]
+    );
 
     // Copy invite to clipboard (with blurb)
-    const copyInvite = useCallback(async (code: string): Promise<boolean> => {
-        try {
-            await navigator.clipboard.writeText(getInviteMessage(code));
-            return true;
-        } catch (err) {
-            console.error("[Invites] Copy error:", err);
-            return false;
-        }
-    }, [getInviteMessage]);
+    const copyInvite = useCallback(
+        async (code: string): Promise<boolean> => {
+            try {
+                await navigator.clipboard.writeText(getInviteMessage(code));
+                return true;
+            } catch (err) {
+                console.error("[Invites] Copy error:", err);
+                return false;
+            }
+        },
+        [getInviteMessage]
+    );
 
     // Share invite (mobile)
-    const shareInvite = useCallback(async (code: string): Promise<boolean> => {
-        const shareData = {
-            title: "Join Spritz",
-            text: "🚀 You're invited to Spritz - the censorship resistant chat app for Web3!",
-            url: getInviteLink(code),
-        };
+    const shareInvite = useCallback(
+        async (code: string): Promise<boolean> => {
+            const shareData = {
+                title: "Join Spritz",
+                text: "🚀 You're invited to Spritz - the censorship resistant chat app for Web3!",
+                url: getInviteLink(code),
+            };
 
-        try {
-            if (navigator.share) {
-                await navigator.share(shareData);
-                return true;
-            } else {
-                return copyInvite(code);
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                    return true;
+                } else {
+                    return copyInvite(code);
+                }
+            } catch (err) {
+                // User cancelled or error
+                return false;
             }
-        } catch (err) {
-            // User cancelled or error
-            return false;
-        }
-    }, [getInviteLink, copyInvite]);
+        },
+        [getInviteLink, copyInvite]
+    );
 
     return {
         ...state,
@@ -122,4 +135,3 @@ export function useUserInvites(walletAddress: string | null) {
         shareInvite,
     };
 }
-

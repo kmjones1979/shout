@@ -7,6 +7,7 @@ type IncomingCallModalProps = {
   callerName?: string | null;
   callerAvatar?: string | null;
   callType?: "audio" | "video";
+  isDecentralized?: boolean;
   onAccept: () => void;
   onReject: () => void;
 };
@@ -16,6 +17,7 @@ export function IncomingCallModal({
   callerName,
   callerAvatar,
   callType = "audio",
+  isDecentralized = false,
   onAccept,
   onReject,
 }: IncomingCallModalProps) {
@@ -94,6 +96,9 @@ export function IncomingCallModal({
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
               Incoming {callType === "video" ? "video" : "voice"} call
+            </p>
+            <p className={`text-xs mt-2 ${isDecentralized ? "text-purple-400" : "text-zinc-500"}`}>
+              {isDecentralized ? "🔐 Decentralized Call" : "📡 Centralized Call"}
             </p>
           </div>
 
