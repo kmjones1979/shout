@@ -559,13 +559,13 @@ const FriendCard = memo(function FriendCard({
                             )}
 
                         {/* Tag, Copy & Remove buttons */}
-                        <div className="flex items-center gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                             <button
                                 onClick={onEditTag}
-                                className="flex-1 py-2 px-3 rounded-lg bg-[#FF5500]/10 hover:bg-[#FF5500]/20 text-[#FFBBA7] text-sm transition-colors flex items-center justify-center gap-2"
+                                className="py-2.5 px-2 rounded-lg bg-[#FF5500]/10 hover:bg-[#FF5500]/20 text-[#FFBBA7] text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5"
                             >
                                 <svg
-                                    className="w-4 h-4"
+                                    className="w-4 h-4 shrink-0"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -577,9 +577,11 @@ const FriendCard = memo(function FriendCard({
                                         d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
                                     />
                                 </svg>
-                                {friendTag?.tag || friendTag?.emoji
-                                    ? "Edit Tag"
-                                    : "Add Tag"}
+                                <span className="truncate">
+                                    {friendTag?.tag || friendTag?.emoji
+                                        ? "Edit"
+                                        : "Tag"}
+                                </span>
                             </button>
                             <button
                                 onClick={() => {
@@ -587,10 +589,10 @@ const FriendCard = memo(function FriendCard({
                                         friend.address
                                     );
                                 }}
-                                className="flex-1 py-2 px-3 rounded-lg bg-zinc-700/50 hover:bg-zinc-700 text-zinc-300 text-sm transition-colors flex items-center justify-center gap-2"
+                                className="py-2.5 px-2 rounded-lg bg-zinc-700/50 hover:bg-zinc-700 text-zinc-300 text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5"
                             >
                                 <svg
-                                    className="w-4 h-4"
+                                    className="w-4 h-4 shrink-0"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -602,14 +604,14 @@ const FriendCard = memo(function FriendCard({
                                         d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                                     />
                                 </svg>
-                                Copy
+                                <span className="truncate">Copy</span>
                             </button>
                             <button
                                 onClick={() => onRemoveClick(friend)}
-                                className="py-2 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm transition-colors flex items-center justify-center gap-2"
+                                className="py-2.5 px-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5"
                             >
                                 <svg
-                                    className="w-4 h-4"
+                                    className="w-4 h-4 shrink-0"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -621,7 +623,8 @@ const FriendCard = memo(function FriendCard({
                                         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                     />
                                 </svg>
-                                Remove
+                                <span className="hidden sm:inline truncate">Remove</span>
+                                <span className="sm:hidden">✕</span>
                             </button>
                         </div>
                     </div>

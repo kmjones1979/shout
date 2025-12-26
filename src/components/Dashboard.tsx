@@ -365,23 +365,43 @@ function DashboardContent({
     // Presence heartbeat - updates last_seen every 30 seconds
     usePresence(userAddress);
 
-    // Resolve user's ENS and award points if they have one
+    // Track if we've attempted ENS points award
+    const ensPointsAttemptedRef = useRef(false);
+
+    // Resolve user's ENS - only depends on userAddress
     useEffect(() => {
+        let isMounted = true;
+        ensPointsAttemptedRef.current = false; // Reset on address change
+
         async function resolveUserENS() {
             const resolved = await resolveAddressOrENS(userAddress);
-            if (resolved) {
-                setUserENS({
-                    ensName: resolved.ensName,
-                    avatar: resolved.avatar,
+            if (resolved && isMounted) {
+                // Only update state if values actually changed
+                setUserENS((prev) => {
+                    if (prev.ensName === resolved.ensName && prev.avatar === resolved.avatar) {
+                        return prev; // No change, don't trigger re-render
+                    }
+                    return {
+                        ensName: resolved.ensName,
+                        avatar: resolved.avatar,
+                    };
                 });
-                // Award points for having a primary ENS name (only once)
-                if (resolved.ensName && !hasClaimed("ens_primary")) {
-                    awardUserPoints("ens_primary");
-                }
             }
         }
         resolveUserENS();
-    }, [userAddress, resolveAddressOrENS, hasClaimed, awardUserPoints]);
+
+        return () => {
+            isMounted = false;
+        };
+    }, [userAddress, resolveAddressOrENS]);
+
+    // Separate effect to award ENS points - only runs when hasClaimed state is ready
+    useEffect(() => {
+        if (userENS.ensName && !ensPointsAttemptedRef.current && !hasClaimed("ens_primary")) {
+            ensPointsAttemptedRef.current = true;
+            awardUserPoints("ens_primary");
+        }
+    }, [userENS.ensName, hasClaimed, awardUserPoints]);
 
     // Agora (centralized) call hook
     const agoraCall = useVoiceCall();

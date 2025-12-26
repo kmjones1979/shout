@@ -17,6 +17,16 @@ export function QRCodeScanner({ isOpen, onClose, onScan }: QRCodeScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isRunningRef = useRef(false);
   const hasScannedRef = useRef(false);
+  
+  // Use refs for callbacks to avoid re-running effect when they change
+  const onScanRef = useRef(onScan);
+  const onCloseRef = useRef(onClose);
+  
+  // Update refs when callbacks change
+  useEffect(() => {
+    onScanRef.current = onScan;
+    onCloseRef.current = onClose;
+  }, [onScan, onClose]);
 
   // Safe stop function
   const stopScanner = useCallback(async () => {
@@ -35,6 +45,11 @@ export function QRCodeScanner({ isOpen, onClose, onScan }: QRCodeScannerProps) {
     if (!isOpen) {
       // Reset state when closed
       hasScannedRef.current = false;
+      return;
+    }
+
+    // Prevent re-initialization if already running
+    if (isRunningRef.current) {
       return;
     }
 
@@ -75,11 +90,16 @@ export function QRCodeScanner({ isOpen, onClose, onScan }: QRCodeScannerProps) {
             hasScannedRef.current = true;
 
             // Stop scanner first
-            await stopScanner();
+            try {
+              isRunningRef.current = false;
+              await scanner.stop();
+            } catch (e) {
+              // Ignore
+            }
             
-            // Then notify parent
-            onScan(decodedText);
-            onClose();
+            // Then notify parent using refs
+            onScanRef.current(decodedText);
+            onCloseRef.current();
           },
           () => {
             // Ignore QR scan failures (noise, etc.)
@@ -109,7 +129,7 @@ export function QRCodeScanner({ isOpen, onClose, onScan }: QRCodeScannerProps) {
       stopScanner();
       scannerRef.current = null;
     };
-  }, [isOpen, onScan, onClose, stopScanner]);
+  }, [isOpen, stopScanner]); // Removed onScan, onClose - using refs instead
 
   // Close on escape key
   useEffect(() => {
