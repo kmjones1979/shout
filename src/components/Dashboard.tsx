@@ -2640,43 +2640,6 @@ function DashboardContent({
                         </div>
                     )}
 
-                    {/* Alpha Channel Join Card - Only show for non-members */}
-                    {!isAlphaMember && (
-                        <motion.button
-                            onClick={() => setIsAlphaChatOpen(true)}
-                            className="w-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 hover:border-purple-500/50 rounded-2xl p-4 sm:p-5 mb-6 transition-all group text-left"
-                            whileHover={{ scale: 1.01 }}
-                            whileTap={{ scale: 0.99 }}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25">
-                                    <span className="text-2xl">🚀</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-white font-semibold text-lg">
-                                        Alpha Channel
-                                    </h3>
-                                    <p className="text-zinc-400 text-sm">
-                                        Join the Spritz community
-                                    </p>
-                                </div>
-                                <svg
-                                    className="w-5 h-5 text-zinc-500 group-hover:text-purple-400 transition-colors"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M9 5l7 7-7 7"
-                                    />
-                                </svg>
-                            </div>
-                        </motion.button>
-                    )}
-
                     {/* Friends Section */}
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
                         <div className="p-6 border-b border-zinc-800">
@@ -2870,48 +2833,56 @@ function DashboardContent({
                             </div>
 
                             <div className="p-6 space-y-2">
-                                {/* Alpha Channel - for members */}
-                                {isAlphaMember && (
-                                    <motion.button
-                                        onClick={() => setIsAlphaChatOpen(true)}
-                                        className="w-full bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl p-3 sm:p-4 transition-all text-left"
-                                        whileTap={{ scale: 0.99 }}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="relative flex-shrink-0">
-                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                                                    <span className="text-lg">🚀</span>
+                                {/* Alpha Channel - always show */}
+                                <motion.button
+                                    onClick={() => setIsAlphaChatOpen(true)}
+                                    className={`w-full rounded-xl p-3 sm:p-4 transition-all text-left ${
+                                        isAlphaMember 
+                                            ? "bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50" 
+                                            : "bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 hover:border-purple-500/50"
+                                    }`}
+                                    whileTap={{ scale: 0.99 }}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative flex-shrink-0">
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                                                <span className="text-lg">🚀</span>
+                                            </div>
+                                            {isAlphaMember && alphaUnreadCount > 0 && (
+                                                <div className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-red-500 rounded-full flex items-center justify-center">
+                                                    <span className="text-white text-xs font-bold">
+                                                        {alphaUnreadCount > 9 ? "9+" : alphaUnreadCount}
+                                                    </span>
                                                 </div>
-                                                {alphaUnreadCount > 0 && (
-                                                    <div className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-red-500 rounded-full flex items-center justify-center">
-                                                        <span className="text-white text-xs font-bold">
-                                                            {alphaUnreadCount > 9 ? "9+" : alphaUnreadCount}
-                                                        </span>
-                                                    </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-white font-medium truncate text-sm sm:text-base">
+                                                    Alpha Channel
+                                                </p>
+                                                {isAlphaMember && alphaMembership?.notifications_muted && (
+                                                    <svg className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                                                    </svg>
                                                 )}
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-white font-medium truncate text-sm sm:text-base">
-                                                        Alpha Channel
-                                                    </p>
-                                                    {alphaMembership?.notifications_muted && (
-                                                        <svg className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                                                        </svg>
-                                                    )}
-                                                </div>
-                                                <p className="text-zinc-500 text-xs sm:text-sm">
-                                                    Community
-                                                </p>
-                                            </div>
+                                            <p className="text-zinc-500 text-xs sm:text-sm">
+                                                {isAlphaMember ? "Community" : "Tap to join the Spritz community"}
+                                            </p>
+                                        </div>
+                                        {isAlphaMember ? (
                                             <svg className="w-5 h-5 text-zinc-600 hover:text-zinc-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                             </svg>
-                                        </div>
-                                    </motion.button>
-                                )}
+                                        ) : (
+                                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
+                                                Join
+                                            </span>
+                                        )}
+                                    </div>
+                                </motion.button>
                                 
                                 <GroupsList
                                     groups={groups}
@@ -2931,14 +2902,14 @@ function DashboardContent({
                                         )
                                     )}
                                     onJoinCall={handleJoinGroupCall}
-                                    hideEmptyState={isAlphaMember}
+                                    hideEmptyState={true}
                                 />
                             </div>
                         </div>
                     )}
 
-                    {/* Community Section - For users without Waku who are Alpha members */}
-                    {(!isWakuInitialized || isPasskeyUser || isSolanaUser) && isAlphaMember && (
+                    {/* Community Section - For users without Waku (passkey/solana users) */}
+                    {(!isWakuInitialized || isPasskeyUser || isSolanaUser) && (
                         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden mt-6">
                             <div className="p-6 border-b border-zinc-800">
                                 <h2 className="text-xl font-bold text-white">
@@ -2951,7 +2922,11 @@ function DashboardContent({
                             <div className="p-6">
                                 <motion.button
                                     onClick={() => setIsAlphaChatOpen(true)}
-                                    className="w-full bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 rounded-xl p-3 sm:p-4 transition-all text-left"
+                                    className={`w-full rounded-xl p-3 sm:p-4 transition-all text-left ${
+                                        isAlphaMember 
+                                            ? "bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50" 
+                                            : "bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 hover:border-purple-500/50"
+                                    }`}
                                     whileTap={{ scale: 0.99 }}
                                 >
                                     <div className="flex items-center gap-3">
@@ -2959,7 +2934,7 @@ function DashboardContent({
                                             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
                                                 <span className="text-lg">🚀</span>
                                             </div>
-                                            {alphaUnreadCount > 0 && (
+                                            {isAlphaMember && alphaUnreadCount > 0 && (
                                                 <div className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-red-500 rounded-full flex items-center justify-center">
                                                     <span className="text-white text-xs font-bold">
                                                         {alphaUnreadCount > 9 ? "9+" : alphaUnreadCount}
@@ -2972,7 +2947,7 @@ function DashboardContent({
                                                 <p className="text-white font-medium truncate text-sm sm:text-base">
                                                     Alpha Channel
                                                 </p>
-                                                {alphaMembership?.notifications_muted && (
+                                                {isAlphaMember && alphaMembership?.notifications_muted && (
                                                     <svg className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
@@ -2980,12 +2955,18 @@ function DashboardContent({
                                                 )}
                                             </div>
                                             <p className="text-zinc-500 text-xs sm:text-sm">
-                                                Tap to open community chat
+                                                {isAlphaMember ? "Tap to open community chat" : "Tap to join the Spritz community"}
                                             </p>
                                         </div>
-                                        <svg className="w-5 h-5 text-zinc-600 hover:text-zinc-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
+                                        {isAlphaMember ? (
+                                            <svg className="w-5 h-5 text-zinc-600 hover:text-zinc-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        ) : (
+                                            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
+                                                Join
+                                            </span>
+                                        )}
                                     </div>
                                 </motion.button>
                             </div>
