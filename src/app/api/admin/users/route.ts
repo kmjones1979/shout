@@ -143,7 +143,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         // Allowed fields to update
-        const allowedFields = ["is_banned", "ban_reason", "notes"];
+        const allowedFields = ["is_banned", "ban_reason", "notes", "beta_access"];
         const filteredUpdates: Record<string, unknown> = {};
         for (const key of allowedFields) {
             if (key in updates) {

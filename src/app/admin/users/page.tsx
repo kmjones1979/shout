@@ -72,6 +72,7 @@ type User = {
     is_banned: boolean;
     ban_reason: string | null;
     notes: string | null;
+    beta_access: boolean;
     // Analytics
     friends_count: number;
     messages_sent: number;
@@ -113,6 +114,7 @@ export default function UsersPage() {
     const [editNotes, setEditNotes] = useState("");
     const [editBanned, setEditBanned] = useState(false);
     const [editBanReason, setEditBanReason] = useState("");
+    const [editBetaAccess, setEditBetaAccess] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     // ENS resolution
@@ -314,6 +316,7 @@ export default function UsersPage() {
                         notes: editNotes,
                         is_banned: editBanned,
                         ban_reason: editBanned ? editBanReason : null,
+                        beta_access: editBetaAccess,
                     },
                 }),
             });
@@ -370,6 +373,7 @@ export default function UsersPage() {
         setEditNotes(user.notes || "");
         setEditBanned(user.is_banned);
         setEditBanReason(user.ban_reason || "");
+        setEditBetaAccess(user.beta_access || false);
     };
 
     // Generate CSV content from users
@@ -794,15 +798,22 @@ export default function UsersPage() {
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    {user.is_banned ? (
-                                                        <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs">
-                                                            Banned
-                                                        </span>
-                                                    ) : (
-                                                        <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
-                                                            Active
-                                                        </span>
-                                                    )}
+                                                    <div className="flex flex-col gap-1">
+                                                        {user.is_banned ? (
+                                                            <span className="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs w-fit">
+                                                                Banned
+                                                            </span>
+                                                        ) : (
+                                                            <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs w-fit">
+                                                                Active
+                                                            </span>
+                                                        )}
+                                                        {user.beta_access && (
+                                                            <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs w-fit">
+                                                                Beta
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <button
@@ -902,15 +913,22 @@ export default function UsersPage() {
                                     </p>
                                 )}
                             </div>
-                            {editingUser.is_banned ? (
-                                <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm">
-                                    Banned
-                                </span>
-                            ) : (
-                                <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
-                                    Active
-                                </span>
-                            )}
+                            <div className="flex flex-col items-end gap-1">
+                                {editingUser.is_banned ? (
+                                    <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm">
+                                        Banned
+                                    </span>
+                                ) : (
+                                    <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
+                                        Active
+                                    </span>
+                                )}
+                                {editingUser.beta_access && (
+                                    <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm">
+                                        Beta Tester
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         {/* User Info */}
@@ -1143,6 +1161,29 @@ export default function UsersPage() {
                                     placeholder="Admin notes about this user..."
                                     className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white placeholder-zinc-600 h-20"
                                 />
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="checkbox"
+                                    id="betaAccess"
+                                    checked={editBetaAccess}
+                                    onChange={(e) =>
+                                        setEditBetaAccess(e.target.checked)
+                                    }
+                                    className="rounded bg-zinc-800 border-zinc-600 text-purple-500 focus:ring-purple-500"
+                                />
+                                <label
+                                    htmlFor="betaAccess"
+                                    className="text-sm text-zinc-400"
+                                >
+                                    Beta Feature Access
+                                </label>
+                                {editBetaAccess && (
+                                    <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full text-xs">
+                                        Beta Tester
+                                    </span>
+                                )}
                             </div>
 
                             <div className="flex items-center gap-3">
