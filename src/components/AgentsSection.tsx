@@ -6,6 +6,7 @@ import { useAgents, Agent } from "@/hooks/useAgents";
 import { CreateAgentModal } from "./CreateAgentModal";
 import { AgentChatModal } from "./AgentChatModal";
 import { EditAgentModal } from "./EditAgentModal";
+import { AgentKnowledgeModal } from "./AgentKnowledgeModal";
 
 interface AgentsSectionProps {
     userAddress: string;
@@ -15,6 +16,7 @@ export function AgentsSection({ userAddress }: AgentsSectionProps) {
     const { agents, isLoading, error, createAgent, updateAgent, deleteAgent } = useAgents(userAddress);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isKnowledgeModalOpen, setIsKnowledgeModalOpen] = useState(false);
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(true);
@@ -42,6 +44,11 @@ export function AgentsSection({ userAddress }: AgentsSectionProps) {
     const handleEditAgent = (agent: Agent) => {
         setSelectedAgent(agent);
         setIsEditModalOpen(true);
+    };
+
+    const handleOpenKnowledge = (agent: Agent) => {
+        setSelectedAgent(agent);
+        setIsKnowledgeModalOpen(true);
     };
 
     const handleSaveAgent = async (agentId: string, updates: {
@@ -183,6 +190,18 @@ export function AgentsSection({ userAddress }: AgentsSectionProps) {
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
+                                                        handleOpenKnowledge(agent);
+                                                    }}
+                                                    className="p-2 text-zinc-400 hover:text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
+                                                    title="Knowledge Base"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         handleEditAgent(agent);
                                                     }}
                                                     className="p-2 text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
@@ -243,6 +262,15 @@ export function AgentsSection({ userAddress }: AgentsSectionProps) {
                 }}
                 agent={selectedAgent}
                 onSave={handleSaveAgent}
+            />
+            <AgentKnowledgeModal
+                isOpen={isKnowledgeModalOpen}
+                onClose={() => {
+                    setIsKnowledgeModalOpen(false);
+                    setSelectedAgent(null);
+                }}
+                agent={selectedAgent}
+                userAddress={userAddress}
             />
         </div>
     );
