@@ -69,22 +69,14 @@ export async function POST(request: NextRequest) {
                 // Ignore errors - user might already be a member
             }
 
-            // Claim daily login bonus (3 points, resets at midnight UTC)
-            let dailyBonus = null;
+            // Check if daily bonus is available (don't auto-claim)
+            let dailyBonusAvailable = false;
             try {
-                const { data: dailyResult } = await supabase.rpc("claim_daily_points", {
-                    p_user_address: normalizedAddress,
-                });
-                if (dailyResult?.success) {
-                    dailyBonus = {
-                        claimed: true,
-                        points: dailyResult.points_awarded,
-                        nextClaimAt: dailyResult.next_claim_at,
-                    };
-                    console.log("[Login] Daily bonus claimed:", dailyResult.points_awarded, "points");
-                }
+                const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD in UTC
+                const lastClaimed = existingUser.daily_points_claimed_at;
+                dailyBonusAvailable = !lastClaimed || lastClaimed !== today;
             } catch (err) {
-                console.error("[Login] Failed to claim daily bonus:", err);
+                console.error("[Login] Failed to check daily bonus:", err);
             }
 
             return NextResponse.json({ 
@@ -92,7 +84,7 @@ export async function POST(request: NextRequest) {
                 isNewUser: false,
                 isBanned: existingUser.is_banned,
                 banReason: existingUser.ban_reason,
-                dailyBonus,
+                dailyBonusAvailable,
             });
         } else {
             // Create new user
@@ -170,29 +162,12 @@ export async function POST(request: NextRequest) {
                 console.error("[Login] Failed to join Alpha channel:", err);
             }
 
-            // Claim daily login bonus for new user (3 points)
-            let dailyBonus = null;
-            try {
-                const { data: dailyResult } = await supabase.rpc("claim_daily_points", {
-                    p_user_address: normalizedAddress,
-                });
-                if (dailyResult?.success) {
-                    dailyBonus = {
-                        claimed: true,
-                        points: dailyResult.points_awarded,
-                        nextClaimAt: dailyResult.next_claim_at,
-                    };
-                    console.log("[Login] Daily bonus claimed for new user:", dailyResult.points_awarded, "points");
-                }
-            } catch (err) {
-                console.error("[Login] Failed to claim daily bonus:", err);
-            }
-
+            // New users always have daily bonus available
             return NextResponse.json({ 
                 success: true, 
                 isNewUser: true,
                 isBanned: false,
-                dailyBonus,
+                dailyBonusAvailable: true,
             });
         }
     } catch (error) {
