@@ -92,9 +92,7 @@ export function Leaderboard({ userAddress, limit = 10 }: LeaderboardProps) {
         );
     }
 
-    // Get top 3 for podium display
-    const top3 = entries.slice(0, 3);
-    const rest = displayedEntries.slice(3);
+    const displayList = displayedEntries;
 
     return (
         <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -126,90 +124,27 @@ export function Leaderboard({ userAddress, limit = 10 }: LeaderboardProps) {
                 </div>
             </div>
 
-            {/* Podium - Top 3 */}
-            {top3.length >= 3 && (
-                <div className="p-4 pb-2 bg-gradient-to-b from-zinc-800/30 to-transparent">
-                    <div className="flex items-end justify-center gap-2 h-32">
-                        {/* 2nd Place */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="flex flex-col items-center"
-                        >
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-300 to-slate-500 flex items-center justify-center mb-2 ring-2 ring-slate-400/50 shadow-lg">
-                                <span className="text-lg">🥈</span>
-                            </div>
-                            <p className="text-white text-xs font-medium truncate max-w-[80px] text-center">
-                                {getDisplayName(top3[1])}
-                            </p>
-                            <p className="text-slate-400 text-xs font-bold">
-                                {top3[1].points.toLocaleString()}
-                            </p>
-                            <div className="w-16 h-16 bg-gradient-to-t from-slate-600/50 to-slate-500/30 rounded-t-lg mt-2 flex items-center justify-center">
-                                <span className="text-slate-300 font-bold text-lg">2</span>
-                            </div>
-                        </motion.div>
-
-                        {/* 1st Place */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0 }}
-                            className="flex flex-col items-center -mt-4"
-                        >
-                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 flex items-center justify-center mb-2 ring-2 ring-yellow-400/50 shadow-lg shadow-yellow-500/30">
-                                <span className="text-xl">🥇</span>
-                            </div>
-                            <p className="text-white text-sm font-semibold truncate max-w-[90px] text-center">
-                                {getDisplayName(top3[0])}
-                            </p>
-                            <p className="text-yellow-400 text-xs font-bold">
-                                {top3[0].points.toLocaleString()}
-                            </p>
-                            <div className="w-20 h-20 bg-gradient-to-t from-yellow-600/50 to-amber-500/30 rounded-t-lg mt-2 flex items-center justify-center">
-                                <span className="text-yellow-300 font-bold text-xl">1</span>
-                            </div>
-                        </motion.div>
-
-                        {/* 3rd Place */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="flex flex-col items-center"
-                        >
-                            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-600 to-orange-700 flex items-center justify-center mb-2 ring-2 ring-amber-600/50 shadow-lg">
-                                <span className="text-base">🥉</span>
-                            </div>
-                            <p className="text-white text-xs font-medium truncate max-w-[70px] text-center">
-                                {getDisplayName(top3[2])}
-                            </p>
-                            <p className="text-amber-500 text-xs font-bold">
-                                {top3[2].points.toLocaleString()}
-                            </p>
-                            <div className="w-14 h-12 bg-gradient-to-t from-amber-700/50 to-orange-600/30 rounded-t-lg mt-2 flex items-center justify-center">
-                                <span className="text-amber-400 font-bold text-base">3</span>
-                            </div>
-                        </motion.div>
-                    </div>
-                </div>
-            )}
-
-            {/* Rest of the leaderboard */}
-            {rest.length > 0 && (
+            {/* Leaderboard List */}
+            {displayList.length > 0 && (
                 <div className="p-3 space-y-2">
-                    {rest.map((entry, index) => {
+                    {displayList.map((entry, index) => {
                         const isCurrentUser =
                             userAddress &&
                             entry.address.toLowerCase() === userAddress.toLowerCase();
+
+                        const getRankDisplay = (rank: number) => {
+                            if (rank === 1) return "🥇";
+                            if (rank === 2) return "🥈";
+                            if (rank === 3) return "🥉";
+                            return rank.toString();
+                        };
 
                         return (
                             <motion.div
                                 key={entry.address}
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: (index + 3) * 0.03 }}
+                                transition={{ delay: index * 0.02 }}
                                 className={`px-4 py-3 flex items-center gap-3 rounded-xl transition-colors ${
                                     isCurrentUser
                                         ? "bg-[#FF5500]/10 border border-[#FF5500]/20"
@@ -217,9 +152,16 @@ export function Leaderboard({ userAddress, limit = 10 }: LeaderboardProps) {
                                 }`}
                             >
                                 {/* Rank */}
-                                <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center">
-                                    <span className="text-zinc-400 text-sm font-bold">
-                                        {entry.rank}
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                    entry.rank <= 3 ? "bg-zinc-900" : "bg-zinc-900"
+                                }`}>
+                                    <span className={`text-sm font-bold ${
+                                        entry.rank === 1 ? "text-yellow-400" :
+                                        entry.rank === 2 ? "text-slate-300" :
+                                        entry.rank === 3 ? "text-amber-500" :
+                                        "text-zinc-400"
+                                    }`}>
+                                        {getRankDisplay(entry.rank)}
                                     </span>
                                 </div>
 
@@ -243,7 +185,12 @@ export function Leaderboard({ userAddress, limit = 10 }: LeaderboardProps) {
 
                                 {/* Points */}
                                 <div className="text-right">
-                                    <p className="text-zinc-300 font-semibold text-sm">
+                                    <p className={`font-semibold text-sm ${
+                                        entry.rank === 1 ? "text-yellow-400" :
+                                        entry.rank === 2 ? "text-slate-300" :
+                                        entry.rank === 3 ? "text-amber-500" :
+                                        "text-zinc-300"
+                                    }`}>
                                         {entry.points.toLocaleString()}
                                     </p>
                                 </div>
