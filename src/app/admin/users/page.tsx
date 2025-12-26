@@ -763,11 +763,27 @@ export default function UsersPage() {
 
             {/* Edit User Modal */}
             {editingUser && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                <div 
+                    className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 overflow-y-auto"
+                    onClick={(e) => {
+                        // Close when clicking the backdrop (not the modal content)
+                        if (e.target === e.currentTarget) {
+                            setEditingUser(null);
+                        }
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                            setEditingUser(null);
+                        }
+                    }}
+                    tabIndex={-1}
+                    ref={(el) => el?.focus()}
+                >
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className="bg-zinc-900 rounded-2xl p-6 max-w-2xl w-full border border-zinc-800 my-8"
+                        onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-start justify-between mb-6">
                             <div>
