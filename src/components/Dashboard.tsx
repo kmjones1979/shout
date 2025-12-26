@@ -54,6 +54,8 @@ import { AlphaChatModal } from "./AlphaChatModal";
 import { useAlphaChat } from "@/hooks/useAlphaChat";
 import { Leaderboard } from "./Leaderboard";
 import { SpritzLogo } from "./SpritzLogo";
+import { AgentsSection } from "./AgentsSection";
+import { useBetaAccess } from "@/hooks/useBetaAccess";
 import Link from "next/link";
 
 import { type WalletType } from "@/hooks/useWalletType";
@@ -275,6 +277,9 @@ function DashboardContent({
 
     // Check if user is an admin
     const { isAdmin, isSuperAdmin } = useAdminCheck(userAddress);
+
+    // Check if user has beta access
+    const { hasBetaAccess } = useBetaAccess(userAddress);
 
     // Email verification
     const {
@@ -2670,6 +2675,15 @@ function DashboardContent({
                                     onCancel={cancelRequest}
                                     isLoading={isFriendsLoading}
                                 />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* AI Agents Section - Beta Users Only */}
+                    {hasBetaAccess && (
+                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden mb-6">
+                            <div className="p-6">
+                                <AgentsSection userAddress={userAddress} />
                             </div>
                         </div>
                     )}
