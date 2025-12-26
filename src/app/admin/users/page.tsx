@@ -60,6 +60,8 @@ type User = {
     chain: string | null;
     ens_name: string | null;
     username: string | null;
+    email: string | null;
+    email_verified: boolean;
     first_login: string;
     last_login: string;
     login_count: number;
@@ -75,6 +77,9 @@ type User = {
     video_minutes: number;
     groups_count: number;
     total_calls: number;
+    // Points & Invites
+    points: number;
+    invite_count: number;
 };
 
 export default function UsersPage() {
@@ -300,6 +305,41 @@ export default function UsersPage() {
         }
     };
 
+    // Grant additional invites to a user
+    const handleGrantInvites = async (walletAddress: string) => {
+        const authHeaders = getAuthHeaders();
+        if (!authHeaders) return;
+
+        try {
+            const res = await fetch("/api/admin/grant-invites", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...authHeaders,
+                },
+                body: JSON.stringify({
+                    walletAddress,
+                    additionalInvites: 5,
+                }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Update the editing user's invite count locally
+                if (editingUser) {
+                    setEditingUser({
+                        ...editingUser,
+                        invite_count: data.newTotal,
+                    });
+                }
+                // Refresh the users list
+                fetchUsers();
+            }
+        } catch (err) {
+            console.error("Error granting invites:", err);
+        }
+    };
+
     // Open edit modal
     const openEditModal = (user: User) => {
         setEditingUser(user);
@@ -432,11 +472,13 @@ export default function UsersPage() {
                             <option value="last_login">Last Login</option>
                             <option value="first_login">First Login</option>
                             <option value="login_count">Login Count</option>
+                            <option value="points">Points</option>
                             <option value="friends_count">Friends</option>
                             <option value="messages_sent">Messages</option>
                             <option value="voice_minutes">Voice Minutes</option>
                             <option value="video_minutes">Video Minutes</option>
                             <option value="total_calls">Total Calls</option>
+                            <option value="invite_count">Invites</option>
                             <option value="wallet_address">Address</option>
                         </select>
                         <select
@@ -469,11 +511,11 @@ export default function UsersPage() {
                                     <tr>
                                         <th className="text-left px-4 py-3 text-sm text-zinc-400">User</th>
                                         <th className="text-left px-4 py-3 text-sm text-zinc-400">Last Active</th>
+                                        <th className="text-center px-4 py-3 text-sm text-zinc-400">Points</th>
+                                        <th className="text-center px-4 py-3 text-sm text-zinc-400">Invites</th>
                                         <th className="text-center px-4 py-3 text-sm text-zinc-400">Friends</th>
                                         <th className="text-center px-4 py-3 text-sm text-zinc-400">Messages</th>
                                         <th className="text-center px-4 py-3 text-sm text-zinc-400">Calls</th>
-                                        <th className="text-center px-4 py-3 text-sm text-zinc-400">Voice Min</th>
-                                        <th className="text-center px-4 py-3 text-sm text-zinc-400">Video Min</th>
                                         <th className="text-left px-4 py-3 text-sm text-zinc-400">Status</th>
                                         <th className="text-left px-4 py-3 text-sm text-zinc-400">Actions</th>
                                     </tr>
@@ -528,6 +570,16 @@ export default function UsersPage() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-center">
+                                                <span className="inline-flex items-center justify-center px-2 h-8 rounded-lg bg-amber-500/20 text-amber-400 font-medium">
+                                                    {(user.points || 0).toLocaleString()}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-center">
+                                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#FF5500]/20 text-[#FFBBA7] font-medium">
+                                                    {user.invite_count || 5}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-center">
                                                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 font-medium">
                                                     {user.friends_count || 0}
                                                 </span>
@@ -541,12 +593,6 @@ export default function UsersPage() {
                                                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-400 font-medium">
                                                     {user.total_calls || 0}
                                                 </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-center text-zinc-400">
-                                                {user.voice_minutes || 0}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-center text-zinc-400">
-                                                {user.video_minutes || 0}
                                             </td>
                                             <td className="px-4 py-3">
                                                 {user.is_banned ? (
@@ -700,6 +746,51 @@ export default function UsersPage() {
                                     <p className="text-xs text-amber-400/70 uppercase mt-1">Groups</p>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Points & Invites */}
+                        <div className="mb-6">
+                            <h3 className="text-sm font-semibold text-zinc-400 mb-3 uppercase">Points & Invites</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs text-yellow-400/70 uppercase">Total Points</p>
+                                            <p className="text-3xl font-bold text-yellow-400">{(editingUser.points || 0).toLocaleString()}</p>
+                                        </div>
+                                        <svg className="w-8 h-8 text-yellow-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div className="bg-[#FF5500]/10 border border-[#FF5500]/30 rounded-lg p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs text-[#FFBBA7]/70 uppercase">Invite Allocation</p>
+                                            <p className="text-3xl font-bold text-[#FFBBA7]">{editingUser.invite_count || 5}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleGrantInvites(editingUser.wallet_address)}
+                                            className="px-3 py-1.5 bg-[#FF5500] hover:bg-[#E04D00] text-white text-sm rounded-lg transition-colors"
+                                        >
+                                            +5 Invites
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {editingUser.email && (
+                                <div className="mt-4 bg-zinc-800/50 rounded-lg p-3 flex items-center gap-3">
+                                    <svg className={`w-5 h-5 ${editingUser.email_verified ? "text-emerald-400" : "text-zinc-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                    <div>
+                                        <p className="text-white text-sm">{editingUser.email}</p>
+                                        <p className={`text-xs ${editingUser.email_verified ? "text-emerald-400" : "text-zinc-500"}`}>
+                                            {editingUser.email_verified ? "Verified" : "Not verified"}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Admin Controls */}

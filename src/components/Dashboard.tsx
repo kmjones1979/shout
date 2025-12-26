@@ -45,6 +45,11 @@ import { PushNotificationPrompt } from "./PushNotificationPrompt";
 import { useLoginTracking } from "@/hooks/useLoginTracking";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { useEmailVerification } from "@/hooks/useEmailVerification";
+import { usePoints } from "@/hooks/usePoints";
+import { useUserInvites } from "@/hooks/useUserInvites";
+import { EmailVerificationModal } from "./EmailVerificationModal";
+import { InvitesModal } from "./InvitesModal";
 import Link from "next/link";
 
 import { type WalletType } from "@/hooks/useWalletType";
@@ -84,6 +89,8 @@ function DashboardContent({
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
     const [isSocialsModalOpen, setIsSocialsModalOpen] = useState(false);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [isInvitesModalOpen, setIsInvitesModalOpen] = useState(false);
     const [showWakuSuccess, setShowWakuSuccess] = useState(false);
     const [currentCallFriend, setCurrentCallFriend] =
         useState<FriendsListFriend | null>(null);
@@ -235,6 +242,15 @@ function DashboardContent({
 
     // Check if user is an admin
     const { isAdmin, isSuperAdmin } = useAdminCheck(userAddress);
+
+    // Email verification
+    const { isVerified: isEmailVerified, email: userEmail } = useEmailVerification(userAddress);
+
+    // Points system
+    const { points: userPoints, checkFriendsMilestone, awardPoints: awardUserPoints, hasClaimed } = usePoints(userAddress);
+
+    // User invites
+    const { available: availableInvites } = useUserInvites(userAddress);
 
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -1432,6 +1448,142 @@ function DashboardContent({
                                                     )}
                                                 </button>
 
+                                                {/* Email */}
+                                                <button
+                                                    onClick={() => {
+                                                        setIsProfileMenuOpen(false);
+                                                        setIsEmailModalOpen(true);
+                                                    }}
+                                                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left border-t border-zinc-800"
+                                                >
+                                                    <div
+                                                        className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                                            isEmailVerified
+                                                                ? "bg-emerald-500/20"
+                                                                : "bg-zinc-800"
+                                                        }`}
+                                                    >
+                                                        <svg
+                                                            className={`w-4 h-4 ${
+                                                                isEmailVerified
+                                                                    ? "text-emerald-400"
+                                                                    : "text-zinc-500"
+                                                            }`}
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                                            />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-white text-sm font-medium">
+                                                            Email
+                                                        </p>
+                                                        <p
+                                                            className={`text-xs ${
+                                                                isEmailVerified
+                                                                    ? "text-emerald-400"
+                                                                    : "text-zinc-500"
+                                                            }`}
+                                                        >
+                                                            {isEmailVerified
+                                                                ? "Verified"
+                                                                : "Add email (+100 pts)"}
+                                                        </p>
+                                                    </div>
+                                                    {isEmailVerified && (
+                                                        <svg
+                                                            className="w-4 h-4 text-emerald-400"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M5 13l4 4L19 7"
+                                                            />
+                                                        </svg>
+                                                    )}
+                                                </button>
+
+                                                {/* Invites */}
+                                                <button
+                                                    onClick={() => {
+                                                        setIsProfileMenuOpen(false);
+                                                        setIsInvitesModalOpen(true);
+                                                    }}
+                                                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left border-t border-zinc-800"
+                                                >
+                                                    <div className="w-8 h-8 rounded-lg bg-[#FB8D22]/20 flex items-center justify-center">
+                                                        <svg
+                                                            className="w-4 h-4 text-[#FFBBA7]"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                                                            />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-white text-sm font-medium">
+                                                            Invites
+                                                        </p>
+                                                        <p className="text-[#FFBBA7] text-xs">
+                                                            {availableInvites} codes available
+                                                        </p>
+                                                    </div>
+                                                    <div className="bg-[#FB8D22]/20 px-2 py-0.5 rounded-full">
+                                                        <span className="text-[#FFBBA7] text-xs font-medium">
+                                                            {availableInvites}
+                                                        </span>
+                                                    </div>
+                                                </button>
+
+                                                {/* Points */}
+                                                <div className="px-4 py-3 flex items-center gap-3 border-t border-zinc-800">
+                                                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                                                        <svg
+                                                            className="w-4 h-4 text-amber-400"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                            />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-white text-sm font-medium">
+                                                            Points
+                                                        </p>
+                                                        <p className="text-amber-400 text-xs">
+                                                            {userPoints.toLocaleString()} pts
+                                                        </p>
+                                                    </div>
+                                                    <div className="bg-amber-500/20 px-2 py-0.5 rounded-full">
+                                                        <span className="text-amber-400 text-xs font-medium">
+                                                            {userPoints.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
                                                 {/* ENS/SNS Name Service */}
                                                 {isSolanaUser ? (
                                                     // Solana users - show SNS link
@@ -2510,6 +2662,20 @@ function DashboardContent({
                 socials={socials}
                 onSave={saveSocials}
                 isLoading={isSocialsLoading}
+            />
+
+            {/* Email Verification Modal */}
+            <EmailVerificationModal
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+                walletAddress={userAddress}
+            />
+
+            {/* Invites Modal */}
+            <InvitesModal
+                isOpen={isInvitesModalOpen}
+                onClose={() => setIsInvitesModalOpen(false)}
+                walletAddress={userAddress}
             />
 
             {/* Create Group Modal */}
