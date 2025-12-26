@@ -69,11 +69,30 @@ export async function POST(request: NextRequest) {
                 // Ignore errors - user might already be a member
             }
 
+            // Claim daily login bonus (3 points, resets at midnight UTC)
+            let dailyBonus = null;
+            try {
+                const { data: dailyResult } = await supabase.rpc("claim_daily_points", {
+                    p_user_address: normalizedAddress,
+                });
+                if (dailyResult?.success) {
+                    dailyBonus = {
+                        claimed: true,
+                        points: dailyResult.points_awarded,
+                        nextClaimAt: dailyResult.next_claim_at,
+                    };
+                    console.log("[Login] Daily bonus claimed:", dailyResult.points_awarded, "points");
+                }
+            } catch (err) {
+                console.error("[Login] Failed to claim daily bonus:", err);
+            }
+
             return NextResponse.json({ 
                 success: true, 
                 isNewUser: false,
                 isBanned: existingUser.is_banned,
                 banReason: existingUser.ban_reason,
+                dailyBonus,
             });
         } else {
             // Create new user
@@ -151,10 +170,29 @@ export async function POST(request: NextRequest) {
                 console.error("[Login] Failed to join Alpha channel:", err);
             }
 
+            // Claim daily login bonus for new user (3 points)
+            let dailyBonus = null;
+            try {
+                const { data: dailyResult } = await supabase.rpc("claim_daily_points", {
+                    p_user_address: normalizedAddress,
+                });
+                if (dailyResult?.success) {
+                    dailyBonus = {
+                        claimed: true,
+                        points: dailyResult.points_awarded,
+                        nextClaimAt: dailyResult.next_claim_at,
+                    };
+                    console.log("[Login] Daily bonus claimed for new user:", dailyResult.points_awarded, "points");
+                }
+            } catch (err) {
+                console.error("[Login] Failed to claim daily bonus:", err);
+            }
+
             return NextResponse.json({ 
                 success: true, 
                 isNewUser: true,
                 isBanned: false,
+                dailyBonus,
             });
         }
     } catch (error) {
