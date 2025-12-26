@@ -3197,6 +3197,16 @@ function DashboardContent({
                 userAddress={userAddress}
                 alphaChat={alphaChat}
                 getUserInfo={getAlphaUserInfo}
+                onAddFriend={async (address) => {
+                    const result = await sendFriendRequest(address);
+                    if (result) {
+                        // Optionally show toast
+                    }
+                    return result;
+                }}
+                isFriend={(address) => 
+                    friends.some(f => f.friend_address.toLowerCase() === address.toLowerCase())
+                }
             />
 
             {/* Create Group Modal */}

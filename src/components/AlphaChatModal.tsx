@@ -28,6 +28,10 @@ interface AlphaChatModalProps {
         name: string | null;
         avatar: string | null;
     } | null;
+    // For adding friends
+    onAddFriend?: (address: string) => Promise<boolean>;
+    // Check if already a friend
+    isFriend?: (address: string) => boolean;
 }
 
 export function AlphaChatModal({
@@ -36,6 +40,8 @@ export function AlphaChatModal({
     userAddress,
     alphaChat,
     getUserInfo,
+    onAddFriend,
+    isFriend,
 }: AlphaChatModalProps) {
     const {
         messages,
@@ -56,7 +62,10 @@ export function AlphaChatModal({
     const [showSettings, setShowSettings] = useState(false);
     const [isLeaving, setIsLeaving] = useState(false);
     const [isJoining, setIsJoining] = useState(false);
+    const [selectedUser, setSelectedUser] = useState<string | null>(null);
+    const [isAddingFriend, setIsAddingFriend] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const userPopupRef = useRef<HTMLDivElement>(null);
 
     // Scroll to bottom when messages change
     useEffect(() => {
@@ -69,6 +78,31 @@ export function AlphaChatModal({
             markAsRead();
         }
     }, [isOpen, isMember, markAsRead]);
+
+    // Close user popup when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (userPopupRef.current && !userPopupRef.current.contains(e.target as Node)) {
+                setSelectedUser(null);
+            }
+        };
+        if (selectedUser) {
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => document.removeEventListener("mousedown", handleClickOutside);
+        }
+    }, [selectedUser]);
+
+    // Handle add friend
+    const handleAddFriend = async (address: string) => {
+        if (!onAddFriend) return;
+        setIsAddingFriend(true);
+        try {
+            await onAddFriend(address);
+            setSelectedUser(null);
+        } finally {
+            setIsAddingFriend(false);
+        }
+    };
 
     // Send message
     const handleSend = useCallback(async () => {
@@ -392,20 +426,90 @@ export function AlphaChatModal({
                                                             isOwn ? "flex-row-reverse" : ""
                                                         }`}
                                                     >
-                                                        {/* Avatar */}
+                                                        {/* Avatar - clickable for non-own messages */}
                                                         {!isOwn && (
-                                                            <div className="flex-shrink-0">
-                                                                {senderAvatar ? (
-                                                                    <img
-                                                                        src={senderAvatar}
-                                                                        alt=""
-                                                                        className="w-8 h-8 rounded-full object-cover"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white text-xs font-bold">
-                                                                        {formatSender(msg.sender_address)
-                                                                            .slice(0, 2)
-                                                                            .toUpperCase()}
+                                                            <div className="flex-shrink-0 relative">
+                                                                <button
+                                                                    onClick={() => setSelectedUser(msg.sender_address)}
+                                                                    className="focus:outline-none focus:ring-2 focus:ring-orange-500/50 rounded-full"
+                                                                >
+                                                                    {senderAvatar ? (
+                                                                        <img
+                                                                            src={senderAvatar}
+                                                                            alt=""
+                                                                            className="w-8 h-8 rounded-full object-cover hover:ring-2 hover:ring-orange-500/50 transition-all"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white text-xs font-bold hover:ring-2 hover:ring-orange-500/50 transition-all">
+                                                                            {formatSender(msg.sender_address)
+                                                                                .slice(0, 2)
+                                                                                .toUpperCase()}
+                                                                        </div>
+                                                                    )}
+                                                                </button>
+                                                                
+                                                                {/* User popup */}
+                                                                {selectedUser === msg.sender_address && (
+                                                                    <div
+                                                                        ref={userPopupRef}
+                                                                        className="absolute left-0 top-10 z-50 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl p-3 min-w-[200px]"
+                                                                    >
+                                                                        <div className="flex items-center gap-3 mb-3 pb-3 border-b border-zinc-700">
+                                                                            {senderAvatar ? (
+                                                                                <img src={senderAvatar} alt="" className="w-10 h-10 rounded-full" />
+                                                                            ) : (
+                                                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white font-bold">
+                                                                                    {formatSender(msg.sender_address).slice(0, 2).toUpperCase()}
+                                                                                </div>
+                                                                            )}
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <p className="text-white font-medium text-sm truncate">
+                                                                                    {formatSender(msg.sender_address)}
+                                                                                </p>
+                                                                                <p className="text-zinc-500 text-xs truncate">
+                                                                                    {msg.sender_address.slice(0, 10)}...{msg.sender_address.slice(-6)}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                        
+                                                                        {onAddFriend && (
+                                                                            isFriend && isFriend(msg.sender_address) ? (
+                                                                                <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                                                    </svg>
+                                                                                    Already friends
+                                                                                </div>
+                                                                            ) : (
+                                                                                <button
+                                                                                    onClick={() => handleAddFriend(msg.sender_address)}
+                                                                                    disabled={isAddingFriend}
+                                                                                    className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                                                                                >
+                                                                                    {isAddingFriend ? (
+                                                                                        <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                                                                                    ) : (
+                                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                                                                        </svg>
+                                                                                    )}
+                                                                                    Add Friend
+                                                                                </button>
+                                                                            )
+                                                                        )}
+                                                                        
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                navigator.clipboard.writeText(msg.sender_address);
+                                                                                setSelectedUser(null);
+                                                                            }}
+                                                                            className="w-full flex items-center gap-2 px-3 py-2 mt-2 hover:bg-zinc-700 text-zinc-400 rounded-lg text-sm transition-colors"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                                            </svg>
+                                                                            Copy Address
+                                                                        </button>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -419,9 +523,12 @@ export function AlphaChatModal({
                                                             }`}
                                                         >
                                                             {!isOwn && (
-                                                                <p className="text-xs text-orange-300 mb-1 font-medium">
+                                                                <button
+                                                                    onClick={() => setSelectedUser(msg.sender_address)}
+                                                                    className="text-xs text-orange-300 mb-1 font-medium hover:text-orange-200 transition-colors"
+                                                                >
                                                                     {formatSender(msg.sender_address)}
-                                                                </p>
+                                                                </button>
                                                             )}
                                                             {isPixelArt ? (
                                                                 <PixelArtImage
