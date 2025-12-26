@@ -177,7 +177,7 @@ function DashboardContent({
     const { username: reachUsername, claimUsername } = useUsername(userAddress);
 
     // Phone verification hook - works for both EVM and Solana addresses
-    const { phoneNumber: verifiedPhone, isVerified: isPhoneVerified } =
+    const { phoneNumber: verifiedPhone, isVerified: isPhoneVerified, refresh: refreshPhone } =
         usePhoneVerification(userAddress);
 
     // Socials hook
@@ -244,7 +244,7 @@ function DashboardContent({
     const { isAdmin, isSuperAdmin } = useAdminCheck(userAddress);
 
     // Email verification
-    const { isVerified: isEmailVerified, email: userEmail } = useEmailVerification(userAddress);
+    const { isVerified: isEmailVerified, email: userEmail, refresh: refreshEmail } = useEmailVerification(userAddress);
 
     // Points system
     const { points: userPoints, checkFriendsMilestone, awardPoints: awardUserPoints, hasClaimed } = usePoints(userAddress);
@@ -308,10 +308,20 @@ function DashboardContent({
     // Huddle01 (decentralized) call hook
     const huddle01Call = useHuddle01Call(userAddress);
 
-    // Use the appropriate call provider based on user settings
+    // Track which provider is currently being used for the active call
+    // null = no call, "agora" = centralized, "huddle01" = decentralized
+    const [currentCallProvider, setCurrentCallProvider] = useState<"agora" | "huddle01" | null>(null);
+
+    // Determine which provider to use for UI based on current call
+    // When in a call, use the provider that was actually joined
+    // When not in a call, default to user's preferred settings
     const useDecentralized =
         userSettings.decentralizedCalls && isHuddle01Configured;
-    const activeCall = useDecentralized ? huddle01Call : agoraCall;
+    const activeCall = currentCallProvider === "agora" 
+        ? agoraCall 
+        : currentCallProvider === "huddle01" 
+            ? huddle01Call 
+            : (useDecentralized ? huddle01Call : agoraCall);
 
     // Destructure from active provider
     const {
@@ -889,16 +899,21 @@ function DashboardContent({
 
         // Determine the channel/room name based on call provider
         let channelName: string;
-        const useDecentralized =
+        const useDecentralizedForCall =
             userSettings.decentralizedCalls && isHuddle01Configured;
+        
+        // Set the provider BEFORE making the call so UI uses correct state
+        const provider = useDecentralizedForCall ? "huddle01" : "agora";
+        setCurrentCallProvider(provider);
 
-        if (useDecentralized) {
+        if (useDecentralizedForCall) {
             // Create a Huddle01 room and use its ID
             console.log("[Dashboard] Creating Huddle01 room for call...");
             const roomResult = await createHuddle01Room("Spritz Call");
             if (!roomResult) {
                 console.error("[Dashboard] Failed to create Huddle01 room");
                 setCurrentCallFriend(null);
+                setCurrentCallProvider(null);
                 alert(
                     "Failed to create decentralized call room. Please try again or disable decentralized calls."
                 );
@@ -932,6 +947,7 @@ function DashboardContent({
         if (!callRecord) {
             console.error("[Dashboard] Failed to create call signaling record");
             setCurrentCallFriend(null);
+            setCurrentCallProvider(null);
             return;
         }
 
@@ -941,9 +957,10 @@ function DashboardContent({
         // Check if the call was rejected during the wait
         if (remoteHangup) {
             console.log(
-                "[Dashboard] Call was rejected (likely DND) - not joining Agora"
+                "[Dashboard] Call was rejected (likely DND) - not joining"
             );
             setCurrentCallFriend(null);
+            setCurrentCallProvider(null);
             clearRemoteHangup();
             // Show notification to caller
             setToast({
@@ -954,8 +971,47 @@ function DashboardContent({
             return;
         }
 
-        // Join the Agora channel (with or without video)
-        const success = await joinCall(channelName, undefined, withVideo);
+        // Join the call using the selected provider
+        let success: boolean;
+        if (provider === "huddle01") {
+            success = await huddle01Call.joinCall(channelName, undefined, withVideo);
+            
+            // If Huddle01 fails, fall back to Agora
+            if (!success && isAgoraConfigured) {
+                console.log("[Dashboard] Huddle01 failed, falling back to Agora...");
+                setCurrentCallProvider("agora");
+                
+                // Generate Agora channel name
+                const addresses = [
+                    userAddress.toLowerCase(),
+                    friend.address.toLowerCase(),
+                ].sort();
+                const agoraChannelName = `spritz_${addresses[0].slice(2, 10)}_${addresses[1].slice(2, 10)}`;
+                
+                // Update the signaling record with the new channel name
+                await endCallSignaling();
+                const fallbackRecord = await startCall(
+                    friend.address,
+                    agoraChannelName,
+                    callerDisplayName,
+                    withVideo ? "video" : "audio"
+                );
+                
+                if (fallbackRecord) {
+                    success = await agoraCall.joinCall(agoraChannelName, undefined, withVideo);
+                    if (success) {
+                        setToast({
+                            sender: "Spritz",
+                            message: "Using centralized call (Huddle01 unavailable)",
+                        });
+                        setTimeout(() => setToast(null), 4000);
+                    }
+                }
+            }
+        } else {
+            success = await agoraCall.joinCall(channelName, undefined, withVideo);
+        }
+        
         if (success && userSettings.soundEnabled) {
             notifyCallConnected();
         }
@@ -990,10 +1046,31 @@ function DashboardContent({
                 isDecentralizedCall
             );
             
+            // Set the provider BEFORE joining so UI uses correct state
+            let provider: "huddle01" | "agora" = (isDecentralizedCall && isHuddle01Configured) ? "huddle01" : "agora";
+            setCurrentCallProvider(provider);
+            
             // Use the appropriate call provider based on the channel type
             let success: boolean;
-            if (isDecentralizedCall && isHuddle01Configured) {
+            if (provider === "huddle01") {
                 success = await huddle01Call.joinCall(channelName, undefined, withVideo);
+                
+                // If Huddle01 fails, fall back to Agora (caller will need to retry with Agora)
+                if (!success && isAgoraConfigured) {
+                    console.log("[Dashboard] Huddle01 failed to accept, falling back to Agora...");
+                    setCurrentCallProvider("agora");
+                    provider = "agora";
+                    // For incoming calls, we can't change the channel - the caller needs to reinitiate
+                    // Just show a message
+                    setToast({
+                        sender: "Spritz",
+                        message: "Decentralized call failed. Ask caller to try again.",
+                    });
+                    setTimeout(() => setToast(null), 4000);
+                    setCurrentCallFriend(null);
+                    setCurrentCallProvider(null);
+                    return;
+                }
             } else {
                 success = await agoraCall.joinCall(channelName, undefined, withVideo);
             }
@@ -1018,6 +1095,7 @@ function DashboardContent({
             }
             leaveCall();
             setCurrentCallFriend(null);
+            setCurrentCallProvider(null);
             clearRemoteHangup();
         }
     }, [
@@ -1045,6 +1123,7 @@ function DashboardContent({
         await leaveCall();
         await endCallSignaling();
         setCurrentCallFriend(null);
+        setCurrentCallProvider(null);
     };
 
     const handleRemoveFriend = async (friendId: string) => {
@@ -1215,6 +1294,38 @@ function DashboardContent({
                                                         </span>
                                                     )}
                                                 </button>
+
+                                                {/* Points */}
+                                                <div className="px-4 py-3 flex items-center gap-3 border-t border-zinc-800">
+                                                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                                                        <svg
+                                                            className="w-4 h-4 text-amber-400"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                            />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-white text-sm font-medium">
+                                                            Points
+                                                        </p>
+                                                        <p className="text-amber-400 text-xs">
+                                                            {userPoints.toLocaleString()} pts
+                                                        </p>
+                                                    </div>
+                                                    <div className="bg-amber-500/20 px-2 py-0.5 rounded-full">
+                                                        <span className="text-amber-400 text-xs font-medium">
+                                                            {userPoints.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
 
                                                 {/* Username */}
                                                 <button
@@ -1566,38 +1677,6 @@ function DashboardContent({
                                                         </span>
                                                     </div>
                                                 </button>
-
-                                                {/* Points */}
-                                                <div className="px-4 py-3 flex items-center gap-3 border-t border-zinc-800">
-                                                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                                                        <svg
-                                                            className="w-4 h-4 text-amber-400"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                strokeWidth={2}
-                                                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                            />
-                                                        </svg>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-white text-sm font-medium">
-                                                            Points
-                                                        </p>
-                                                        <p className="text-amber-400 text-xs">
-                                                            {userPoints.toLocaleString()} pts
-                                                        </p>
-                                                    </div>
-                                                    <div className="bg-amber-500/20 px-2 py-0.5 rounded-full">
-                                                        <span className="text-amber-400 text-xs font-medium">
-                                                            {userPoints.toLocaleString()}
-                                                        </span>
-                                                    </div>
-                                                </div>
 
                                                 {/* ENS/SNS Name Service */}
                                                 {isSolanaUser ? (
@@ -2624,7 +2703,7 @@ function DashboardContent({
                 isOpen={isPhoneModalOpen}
                 onClose={() => setIsPhoneModalOpen(false)}
                 userAddress={userAddress}
-                onSuccess={() => {}}
+                onSuccess={() => refreshPhone()}
             />
 
             {/* Status Modal */}
@@ -2685,6 +2764,7 @@ function DashboardContent({
                 isOpen={isEmailModalOpen}
                 onClose={() => setIsEmailModalOpen(false)}
                 walletAddress={userAddress}
+                onVerified={refreshEmail}
             />
 
             {/* Invites Modal */}

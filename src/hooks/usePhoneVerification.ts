@@ -27,36 +27,37 @@ export function usePhoneVerification(userAddress: string | null) {
     const [error, setError] = useState<string | null>(null);
     const [codeExpiresAt, setCodeExpiresAt] = useState<Date | null>(null);
 
-    // Fetch current user's phone verification status on mount
-    useEffect(() => {
+    // Fetch current user's phone verification status
+    const fetchPhoneStatus = useCallback(async () => {
         if (!userAddress || !isSupabaseConfigured || !supabase) return;
+        
+        const client = supabase; // TypeScript narrowing
+        if (!client) return;
 
-        const fetchPhoneStatus = async () => {
-            const client = supabase; // TypeScript narrowing
-            if (!client) return;
+        const { data, error: fetchError } = await client
+            .from("shout_phone_numbers")
+            .select("phone_number, verified")
+            .eq("wallet_address", normalizeAddress(userAddress))
+            .maybeSingle();
 
-            const { data, error: fetchError } = await client
-                .from("shout_phone_numbers")
-                .select("phone_number, verified")
-                .eq("wallet_address", normalizeAddress(userAddress))
-                .maybeSingle();
-
-            if (fetchError) {
-                console.error(
-                    "[usePhoneVerification] Error fetching status:",
-                    fetchError
-                );
-            } else if (data) {
-                setPhoneNumber(data.phone_number);
-                setIsVerified(data.verified);
-                if (data.verified) {
-                    setState("verified");
-                }
+        if (fetchError) {
+            console.error(
+                "[usePhoneVerification] Error fetching status:",
+                fetchError
+            );
+        } else if (data) {
+            setPhoneNumber(data.phone_number);
+            setIsVerified(data.verified);
+            if (data.verified) {
+                setState("verified");
             }
-        };
-
-        fetchPhoneStatus();
+        }
     }, [userAddress]);
+
+    // Fetch on mount
+    useEffect(() => {
+        fetchPhoneStatus();
+    }, [fetchPhoneStatus]);
 
     // Send verification code
     const sendCode = useCallback(
@@ -263,5 +264,6 @@ export function usePhoneVerification(userAddress: string | null) {
         startChangeNumber,
         reset,
         clearError,
+        refresh: fetchPhoneStatus,
     };
 }

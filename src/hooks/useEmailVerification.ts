@@ -33,39 +33,39 @@ export function useEmailVerification(walletAddress: string | null) {
     });
 
     // Load email status
-    useEffect(() => {
-        const loadEmailStatus = async () => {
-            if (!walletAddress || !supabase) {
+    const loadEmailStatus = useCallback(async () => {
+        if (!walletAddress || !supabase) {
+            setState(prev => ({ ...prev, isLoading: false }));
+            return;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from("shout_users")
+                .select("email, email_verified")
+                .eq("wallet_address", walletAddress.toLowerCase())
+                .single();
+
+            if (error) {
                 setState(prev => ({ ...prev, isLoading: false }));
                 return;
             }
 
-            try {
-                const { data, error } = await supabase
-                    .from("shout_users")
-                    .select("email, email_verified")
-                    .eq("wallet_address", walletAddress.toLowerCase())
-                    .single();
-
-                if (error) {
-                    setState(prev => ({ ...prev, isLoading: false }));
-                    return;
-                }
-
-                setState(prev => ({
-                    ...prev,
-                    email: data.email,
-                    isVerified: data.email_verified || false,
-                    isLoading: false,
-                }));
-            } catch (err) {
-                console.error("[Email] Load error:", err);
-                setState(prev => ({ ...prev, isLoading: false }));
-            }
-        };
-
-        loadEmailStatus();
+            setState(prev => ({
+                ...prev,
+                email: data.email,
+                isVerified: data.email_verified || false,
+                isLoading: false,
+            }));
+        } catch (err) {
+            console.error("[Email] Load error:", err);
+            setState(prev => ({ ...prev, isLoading: false }));
+        }
     }, [walletAddress]);
+
+    useEffect(() => {
+        loadEmailStatus();
+    }, [loadEmailStatus]);
 
     // Send verification code
     const sendCode = useCallback(async (email: string) => {
@@ -173,6 +173,7 @@ export function useEmailVerification(walletAddress: string | null) {
         sendCode,
         verifyCode,
         reset,
+        refresh: loadEmailStatus,
     };
 }
 
