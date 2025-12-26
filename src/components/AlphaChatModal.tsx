@@ -462,7 +462,7 @@ export function AlphaChatModal({
                                                                 {selectedUser === msg.sender_address && (
                                                                     <div
                                                                         ref={userPopupRef}
-                                                                        className="absolute left-0 top-10 z-50 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl p-3 min-w-[200px]"
+                                                                        className="absolute left-0 bottom-10 z-50 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl p-3 min-w-[200px]"
                                                                     >
                                                                         <div className="flex items-center gap-3 mb-3 pb-3 border-b border-zinc-700">
                                                                             {senderAvatar ? (
