@@ -88,6 +88,16 @@ export function GroupChatModal({
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
+    // Scroll to bottom immediately when modal opens
+    useEffect(() => {
+        if (isOpen && messages.length > 0) {
+            // Use setTimeout to ensure DOM is rendered
+            setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+            }, 100);
+        }
+    }, [isOpen, messages.length]);
+
     // Load messages and members when modal opens
     useEffect(() => {
         if (!isOpen || !isInitialized || !group) return;

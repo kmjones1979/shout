@@ -72,6 +72,16 @@ export function AlphaChatModal({
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
+    // Scroll to bottom immediately when modal opens
+    useEffect(() => {
+        if (isOpen && messages.length > 0) {
+            // Use setTimeout to ensure DOM is rendered
+            setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+            }, 100);
+        }
+    }, [isOpen, messages.length]);
+
     // Mark as read when opening
     useEffect(() => {
         if (isOpen && isMember) {
