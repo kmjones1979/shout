@@ -222,7 +222,7 @@ export function ExploreAgentsModal({
                                                         className={`p-2 rounded-lg transition-all ${
                                                             isFavorite(agent.id)
                                                                 ? "text-yellow-400 bg-yellow-500/20"
-                                                                : "text-zinc-500 hover:text-yellow-400 hover:bg-yellow-500/10 opacity-0 group-hover:opacity-100"
+                                                                : "text-zinc-400 hover:text-yellow-400 hover:bg-yellow-500/10"
                                                         }`}
                                                         title={isFavorite(agent.id) ? "Remove from favorites" : "Add to favorites"}
                                                     >
@@ -237,8 +237,8 @@ export function ExploreAgentsModal({
                                                             </svg>
                                                         )}
                                                     </button>
-                                                    {/* Chat button */}
-                                                    <div className="px-3 py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {/* Chat button - always visible on mobile */}
+                                                    <div className="px-3 py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                         Chat
                                                     </div>
                                                 </div>
