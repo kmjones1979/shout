@@ -26,13 +26,20 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const { walletAddress, event } = await request.json() as { 
-            walletAddress: string; 
-            event: AnalyticsEvent;
-        };
+        // Safely parse JSON body
+        let body: { walletAddress?: string; event?: AnalyticsEvent };
+        try {
+            body = await request.json();
+        } catch {
+            // Empty body or invalid JSON - silently ignore
+            return NextResponse.json({ success: true, skipped: true });
+        }
+
+        const { walletAddress, event } = body;
 
         if (!walletAddress || !event) {
-            return NextResponse.json({ error: "Missing walletAddress or event" }, { status: 400 });
+            // Missing required fields - silently ignore (common with prefetch requests)
+            return NextResponse.json({ success: true, skipped: true });
         }
 
         const normalizedAddress = walletAddress.toLowerCase();
