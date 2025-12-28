@@ -9,8 +9,7 @@ import {
     useEffect,
     type ReactNode,
 } from "react";
-import { type Address } from "viem";
-import { useWalletClient } from "wagmi";
+// Address can be EVM (0x...) or Solana (base58)
 import protobuf from "protobufjs";
 import { supabase } from "@/config/supabase";
 
@@ -444,7 +443,7 @@ export function WakuProvider({
     userAddress,
 }: {
     children: ReactNode;
-    userAddress: Address | null;
+    userAddress: string | null; // Can be EVM (0x...) or Solana (base58)
 }) {
     const [isInitialized, setIsInitialized] = useState(false);
     const [isInitializing, setIsInitializing] = useState(false);
@@ -463,8 +462,6 @@ export function WakuProvider({
     const newMessageCallbacksRef = useRef<Set<NewMessageCallback>>(new Set());
     const messagesCache = useRef<Map<string, unknown[]>>(new Map());
     const processedMessageIds = useRef<Set<string>>(new Set());
-
-    const { data: walletClient } = useWalletClient();
 
     // User's inbox ID (we use the address as the identifier)
     const userInboxId = userAddress?.toLowerCase() || null;

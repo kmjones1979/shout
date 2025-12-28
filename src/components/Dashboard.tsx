@@ -2518,12 +2518,12 @@ function DashboardContent({
                                     </div>
                                     <div>
                                         <p className="text-[#FFF0E0] font-medium">
-                                            Solana Wallet Connected
+                                            🟣 Solana Wallet Connected
                                         </p>
                                         <p className="text-[#FFF0E0]/70 text-sm mt-1">
-                                            Voice calls are available! Encrypted
-                                            chat requires an Ethereum wallet
-                                            (requires EVM wallet).
+                                            Voice calls and encrypted chat are
+                                            available! Some features may vary
+                                            from EVM wallets.
                                         </p>
                                     </div>
                                 </div>
@@ -3532,22 +3532,9 @@ export function Dashboard({
     isBetaTester,
     siweUser,
 }: DashboardProps) {
-    // Only wrap with WakuProvider for EVM users (Waku doesn't support Solana)
-    if (walletType === "solana") {
-        return (
-            <DashboardContent
-                userAddress={userAddress}
-                onLogout={onLogout}
-                isPasskeyUser={isPasskeyUser}
-                walletType={walletType}
-                isBetaTester={isBetaTester}
-                siweUser={siweUser}
-            />
-        );
-    }
-
+    // Waku works with both EVM and Solana addresses
     return (
-        <XMTPProvider userAddress={userAddress as `0x${string}`}>
+        <XMTPProvider userAddress={userAddress}>
             <DashboardContent
                 userAddress={userAddress}
                 onLogout={onLogout}
