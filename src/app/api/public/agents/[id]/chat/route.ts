@@ -178,7 +178,7 @@ export async function POST(
                 temperature: number;
             };
         } = {
-            model: agent.model || "gemini-2.0-flash",
+            model: agent.model || "gemini-2.0-flash", // Free tier: 15 RPM, 1500 req/day
             contents: [
                 ...history,
                 { role: "user", parts: [{ text: fullMessage }] }

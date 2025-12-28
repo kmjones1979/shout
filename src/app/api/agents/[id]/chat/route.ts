@@ -247,7 +247,7 @@ export async function POST(
             config.tools = [{ googleSearch: {} }];
         }
 
-        // Generate response using Gemini
+        // Generate response using Gemini 2.0 Flash (free tier: 15 RPM, 1500 req/day)
         const response = await ai.models.generateContent({
             model: "gemini-2.0-flash",
             contents: history,
