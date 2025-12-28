@@ -113,6 +113,7 @@ function DashboardContent({
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [isInvitesModalOpen, setIsInvitesModalOpen] = useState(false);
     const [showWakuSuccess, setShowWakuSuccess] = useState(false);
+    const [showSolanaBanner, setShowSolanaBanner] = useState(true);
     const [currentCallFriend, setCurrentCallFriend] =
         useState<FriendsListFriend | null>(null);
     const [chatFriend, setChatFriend] = useState<FriendsListFriend | null>(
@@ -584,6 +585,16 @@ function DashboardContent({
             return () => clearTimeout(timer);
         }
     }, [isWakuInitialized, isPasskeyUser]);
+
+    // Auto-hide Solana banner after 5 seconds
+    useEffect(() => {
+        if (isSolanaUser && showSolanaBanner) {
+            const timer = setTimeout(() => {
+                setShowSolanaBanner(false);
+            }, 5000); // Hide after 5 seconds
+            return () => clearTimeout(timer);
+        }
+    }, [isSolanaUser, showSolanaBanner]);
 
     // Handler to switch to mainnet
     const handleSwitchToMainnet = async () => {
@@ -2488,44 +2499,43 @@ function DashboardContent({
                         </motion.div>
                     )}
 
-                    {/* Solana User Notice - Chat not available */}
-                    {isSolanaUser && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="mb-6"
-                        >
-                            <div className="bg-gradient-to-r from-[#FB8D22]/20 to-[#FB8D22]/20 border border-[#FB8D22]/30 rounded-xl p-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-[#FB8D22]/20 flex items-center justify-center flex-shrink-0">
-                                        <svg
-                                            className="w-5 h-5 text-[#FFBBA7]"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
+                    {/* Solana User Notice - auto-dismisses after 5 seconds */}
+                    <AnimatePresence>
+                        {isSolanaUser && showSolanaBanner && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="mb-6"
+                            >
+                                <div className="bg-gradient-to-r from-[#9945FF]/20 to-[#14F195]/20 border border-[#9945FF]/30 rounded-xl p-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-[#9945FF]/20 flex items-center justify-center flex-shrink-0">
+                                            <span className="text-xl">🟣</span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-[#FFF0E0] font-medium">
+                                                Solana Wallet Connected
+                                            </p>
+                                            <p className="text-[#FFF0E0]/70 text-sm mt-1">
+                                                Voice calls and encrypted chat are
+                                                available! Some features may vary
+                                                from EVM wallets.
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowSolanaBanner(false)}
+                                            className="text-[#FFF0E0]/50 hover:text-[#FFF0E0] transition-colors"
                                         >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                            />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p className="text-[#FFF0E0] font-medium">
-                                            🟣 Solana Wallet Connected
-                                        </p>
-                                        <p className="text-[#FFF0E0]/70 text-sm mt-1">
-                                            Voice calls and encrypted chat are
-                                            available! Some features may vary
-                                            from EVM wallets.
-                                        </p>
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                        </motion.div>
-                    )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Waku Status Banner - hidden for passkey users */}
                     {!isWakuInitialized && !isPasskeyUser && (
