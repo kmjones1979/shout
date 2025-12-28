@@ -3,6 +3,7 @@ import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Web3Provider } from "@/context/Web3Provider";
 import { PasskeyProvider } from "@/context/PasskeyProvider";
+import { AuthProvider } from "@/context/AuthProvider";
 
 const dmSans = DM_Sans({
     subsets: ["latin"],
@@ -157,7 +158,9 @@ export default function RootLayout({
                 className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased`}
             >
                 <Web3Provider>
-                    <PasskeyProvider>{children}</PasskeyProvider>
+                    <AuthProvider>
+                        <PasskeyProvider>{children}</PasskeyProvider>
+                    </AuthProvider>
                 </Web3Provider>
             </body>
         </html>

@@ -12,6 +12,7 @@ import { Globe } from "@/components/Globe";
 import { SpritzLogo } from "@/components/SpritzLogo";
 import { usePasskeyContext } from "@/context/PasskeyProvider";
 import { useWalletType, type WalletType } from "@/hooks/useWalletType";
+import { useAuth } from "@/context/AuthProvider";
 
 export default function Home() {
     // EVM wallet via wagmi
@@ -35,8 +36,21 @@ export default function Home() {
         logout: passkeyLogout,
         isLoading: isPasskeyLoading,
     } = usePasskeyContext();
+
+    // SIWE Authentication
+    const {
+        isAuthenticated: isSiweAuthenticated,
+        isLoading: isSiweLoading,
+        signIn: siweSignIn,
+        signOut: siweSignOut,
+        isBetaTester,
+        user: siweUser,
+        error: siweError,
+    } = useAuth();
+
     const [mounted, setMounted] = useState(false);
     const [initializing, setInitializing] = useState(true);
+    const [signingIn, setSigningIn] = useState(false);
 
     // Handle hydration
     useEffect(() => {
@@ -54,6 +68,27 @@ export default function Home() {
         }
     }, [mounted]);
 
+    // Auto sign-in with SIWE when wallet connects (if not already authenticated)
+    useEffect(() => {
+        if (
+            mounted &&
+            !initializing &&
+            isWalletConnected &&
+            walletAddress &&
+            !isSiweAuthenticated &&
+            !isSiweLoading &&
+            !signingIn &&
+            walletType === "evm" // Only auto-sign for EVM wallets
+        ) {
+            // Small delay to prevent race conditions
+            const timer = setTimeout(() => {
+                setSigningIn(true);
+                siweSignIn().finally(() => setSigningIn(false));
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [mounted, initializing, isWalletConnected, walletAddress, isSiweAuthenticated, isSiweLoading, signingIn, siweSignIn, walletType]);
+
     // Determine the active user address (supports both EVM and Solana)
     const userAddress: string | null = mounted
         ? smartAccountAddress || walletAddress || null
@@ -64,14 +99,21 @@ export default function Home() {
         ? "evm" // Passkey users always use EVM (smart accounts)
         : walletType;
 
-    const isAuthenticated =
-        mounted && (isPasskeyAuthenticated || isWalletConnected);
+    // For EVM wallets, require SIWE authentication
+    // For Solana wallets and passkeys, use existing flow
+    const isFullyAuthenticated = mounted && (
+        isPasskeyAuthenticated || 
+        (isWalletConnected && walletType === "solana") ||
+        (isWalletConnected && walletType === "evm" && isSiweAuthenticated)
+    );
 
     // Show loading while checking auth state
     const isCheckingAuth =
-        !mounted || initializing || isReconnecting || isPasskeyLoading;
+        !mounted || initializing || isReconnecting || isPasskeyLoading || (isWalletConnected && walletType === "evm" && isSiweLoading);
 
     const handleLogout = () => {
+        // Sign out SIWE
+        siweSignOut();
         // Disconnect wallet if connected (works for both EVM and Solana via AppKit)
         if (isAppKitConnected) {
             walletDisconnect();
@@ -93,14 +135,68 @@ export default function Home() {
                     <h1 className="text-2xl font-bold text-white mb-2">
                         Spritz
                     </h1>
-                    <p className="text-zinc-500 text-sm">Loading...</p>
+                    <p className="text-zinc-500 text-sm">
+                        {signingIn ? "Signing in..." : "Loading..."}
+                    </p>
                 </div>
             </main>
         );
     }
 
-    // Show dashboard if authenticated
-    if (isAuthenticated && userAddress) {
+    // Show SIWE sign-in prompt for EVM wallet users who haven't signed yet
+    if (isWalletConnected && walletType === "evm" && !isSiweAuthenticated && !signingIn) {
+        return (
+            <main className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-full max-w-md"
+                >
+                    <div className="glass-card rounded-3xl p-8 shadow-2xl text-center">
+                        <SpritzLogo size="xl" className="mx-auto mb-6 shadow-lg shadow-[#FF5500]/30" />
+                        
+                        <h2 className="text-2xl font-bold text-white mb-2">
+                            Sign In to Spritz
+                        </h2>
+                        <p className="text-zinc-400 mb-6">
+                            Please sign the message in your wallet to verify ownership and continue.
+                        </p>
+
+                        {siweError && (
+                            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                                {siweError}
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => {
+                                setSigningIn(true);
+                                siweSignIn().finally(() => setSigningIn(false));
+                            }}
+                            disabled={signingIn}
+                            className="w-full py-3 bg-gradient-to-r from-[#FF5500] to-[#FF7A33] hover:from-[#FF6611] hover:to-[#FF8844] disabled:opacity-50 text-white font-semibold rounded-xl transition-all mb-4"
+                        >
+                            {signingIn ? "Signing..." : "Sign Message"}
+                        </button>
+
+                        <button
+                            onClick={handleLogout}
+                            className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition-colors"
+                        >
+                            Disconnect Wallet
+                        </button>
+
+                        <p className="text-xs text-zinc-500 mt-4">
+                            This signature proves you own this wallet. No transaction will be made.
+                        </p>
+                    </div>
+                </motion.div>
+            </main>
+        );
+    }
+
+    // Show dashboard if fully authenticated
+    if (isFullyAuthenticated && userAddress) {
         return (
             <>
                 <PWAInstallPrompt />
@@ -109,6 +205,8 @@ export default function Home() {
                     onLogout={handleLogout}
                     isPasskeyUser={isPasskeyAuthenticated}
                     walletType={activeWalletType}
+                    isBetaTester={isBetaTester}
+                    siweUser={siweUser}
                 />
             </>
         );

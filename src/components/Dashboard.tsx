@@ -60,11 +60,24 @@ import Link from "next/link";
 
 import { type WalletType } from "@/hooks/useWalletType";
 
+type SiweUser = {
+    id: string;
+    walletAddress: string;
+    username: string | null;
+    ensName: string | null;
+    email: string | null;
+    emailVerified: boolean;
+    points: number;
+    inviteCount: number;
+} | null;
+
 type DashboardProps = {
     userAddress: string; // Can be EVM (0x...) or Solana address
     onLogout: () => void;
     isPasskeyUser?: boolean;
     walletType: WalletType;
+    isBetaTester?: boolean;
+    siweUser?: SiweUser;
 };
 
 // Convert Friend from useFriendRequests to the format FriendsList expects
@@ -84,6 +97,8 @@ function DashboardContent({
     onLogout,
     isPasskeyUser,
     walletType,
+    isBetaTester,
+    siweUser,
 }: DashboardProps) {
     const isSolanaUser = walletType === "solana";
     // EVM address for hooks that require it
@@ -278,8 +293,9 @@ function DashboardContent({
     // Check if user is an admin
     const { isAdmin, isSuperAdmin } = useAdminCheck(userAddress);
 
-    // Check if user has beta access
-    const { hasBetaAccess } = useBetaAccess(userAddress);
+    // Beta access is passed from SIWE auth (or fall back to hook for non-EVM users)
+    const { hasBetaAccess: hookBetaAccess } = useBetaAccess(userAddress);
+    const hasBetaAccess = isBetaTester ?? hookBetaAccess;
 
     // Email verification
     const {
@@ -3513,6 +3529,8 @@ export function Dashboard({
     onLogout,
     isPasskeyUser,
     walletType,
+    isBetaTester,
+    siweUser,
 }: DashboardProps) {
     // Only wrap with WakuProvider for EVM users (Waku doesn't support Solana)
     if (walletType === "solana") {
@@ -3522,6 +3540,8 @@ export function Dashboard({
                 onLogout={onLogout}
                 isPasskeyUser={isPasskeyUser}
                 walletType={walletType}
+                isBetaTester={isBetaTester}
+                siweUser={siweUser}
             />
         );
     }
@@ -3533,6 +3553,8 @@ export function Dashboard({
                 onLogout={onLogout}
                 isPasskeyUser={isPasskeyUser}
                 walletType={walletType}
+                isBetaTester={isBetaTester}
+                siweUser={siweUser}
             />
         </XMTPProvider>
     );
