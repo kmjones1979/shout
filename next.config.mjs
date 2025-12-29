@@ -102,6 +102,8 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    // Disable the development indicator in the corner
+    devIndicators: false,
     transpilePackages: [
         "@reown/appkit",
         "@reown/appkit-adapter-wagmi",
