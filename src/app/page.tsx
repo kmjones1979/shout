@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { useAccount } from "wagmi";
 import { useAppKitAccount, useDisconnect } from "@reown/appkit/react";
@@ -14,9 +14,42 @@ import { usePasskeyContext } from "@/context/PasskeyProvider";
 import { useWalletType, type WalletType } from "@/hooks/useWalletType";
 import { useAuth } from "@/context/AuthProvider";
 
+// Check if there's a saved wallet session we should wait for
+function hasSavedWalletSession(): boolean {
+    if (typeof window === "undefined") return false;
+    try {
+        // Check for wagmi state (EVM wallets)
+        const wagmiState = localStorage.getItem("wagmi.store");
+        if (wagmiState) {
+            const parsed = JSON.parse(wagmiState);
+            if (parsed?.state?.connections?.size > 0 || parsed?.state?.current) {
+                return true;
+            }
+        }
+        // Check for @reown appkit state (Solana + EVM)
+        for (const key of Object.keys(localStorage)) {
+            if (key.startsWith("@reown") || key.startsWith("wc@") || key.includes("walletconnect")) {
+                return true;
+            }
+        }
+        // Check for our SIWE credentials
+        const authCredentials = localStorage.getItem("spritz_auth_credentials");
+        if (authCredentials) {
+            const parsed = JSON.parse(authCredentials);
+            const AUTH_TTL = 7 * 24 * 60 * 60 * 1000;
+            if (parsed?.address && Date.now() - parsed.timestamp < AUTH_TTL) {
+                return true;
+            }
+        }
+    } catch {
+        // Ignore parse errors
+    }
+    return false;
+}
+
 export default function Home() {
     // EVM wallet via wagmi
-    const { isReconnecting } = useAccount();
+    const { isReconnecting, status: wagmiStatus } = useAccount();
     // AppKit disconnect (works for both EVM and Solana)
     const { disconnect: walletDisconnect } = useDisconnect();
 
@@ -28,7 +61,7 @@ export default function Home() {
     } = useWalletType();
 
     // AppKit account for disconnect
-    const { isConnected: isAppKitConnected } = useAppKitAccount();
+    const { isConnected: isAppKitConnected, status: appKitStatus } = useAppKitAccount();
 
     const {
         isAuthenticated: isPasskeyAuthenticated,
@@ -51,22 +84,36 @@ export default function Home() {
     const [mounted, setMounted] = useState(false);
     const [initializing, setInitializing] = useState(true);
     const [signingIn, setSigningIn] = useState(false);
+    const hasSavedSession = useRef<boolean | null>(null);
 
     // Handle hydration
     useEffect(() => {
         setMounted(true);
+        // Check for saved session on mount
+        hasSavedSession.current = hasSavedWalletSession();
     }, []);
 
     // Give wagmi/appkit time to reconnect from storage
+    // Use longer timeout if we detected a saved session
     useEffect(() => {
         if (mounted) {
-            // Small delay to let wallets reconnect from localStorage
+            const hasSession = hasSavedSession.current;
+            // Use longer delay if we expect a wallet to reconnect
+            const delay = hasSession ? 1500 : 500;
+            
             const timer = setTimeout(() => {
                 setInitializing(false);
-            }, 500);
+            }, delay);
             return () => clearTimeout(timer);
         }
     }, [mounted]);
+    
+    // Detect if wallet is still reconnecting (checking multiple signals)
+    const isWalletReconnecting = 
+        isReconnecting || 
+        wagmiStatus === "reconnecting" ||
+        appKitStatus === "reconnecting" ||
+        (hasSavedSession.current && !isWalletConnected && initializing);
 
     // Auto sign-in with SIWE/SIWS when wallet connects (if not already authenticated)
     useEffect(() => {
@@ -107,7 +154,7 @@ export default function Home() {
 
     // Show loading while checking auth state
     const isCheckingAuth =
-        !mounted || initializing || isReconnecting || isPasskeyLoading || (isWalletConnected && isSiweLoading);
+        !mounted || initializing || isWalletReconnecting || isPasskeyLoading || (isWalletConnected && isSiweLoading);
 
     const handleLogout = () => {
         // Sign out SIWE
@@ -124,6 +171,18 @@ export default function Home() {
 
     // Show loading splash while checking auth
     if (isCheckingAuth) {
+        // Determine appropriate loading message
+        let loadingMessage = "Loading...";
+        if (signingIn) {
+            loadingMessage = "Signing in...";
+        } else if (isWalletReconnecting) {
+            loadingMessage = "Reconnecting wallet...";
+        } else if (isSiweLoading) {
+            loadingMessage = "Authenticating...";
+        } else if (isPasskeyLoading) {
+            loadingMessage = "Checking passkey...";
+        }
+        
         return (
             <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
                 <div className="text-center">
@@ -134,7 +193,7 @@ export default function Home() {
                         Spritz
                     </h1>
                     <p className="text-zinc-500 text-sm">
-                        {signingIn ? "Signing in..." : "Loading..."}
+                        {loadingMessage}
                     </p>
                 </div>
             </main>
