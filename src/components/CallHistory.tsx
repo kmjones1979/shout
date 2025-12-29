@@ -222,7 +222,11 @@ export function CallHistory({
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: index * 0.05 }}
-                                        className="flex items-center gap-3 p-3 bg-zinc-800/30 hover:bg-zinc-800/50 rounded-xl transition-colors group"
+                                        className={`flex items-center gap-3 p-3 rounded-xl transition-colors group ${
+                                            call.status === "missed" || call.status === "declined"
+                                                ? "bg-red-500/5 hover:bg-red-500/10 border border-red-500/10"
+                                                : "bg-zinc-800/30 hover:bg-zinc-800/50"
+                                        }`}
                                     >
                                         {/* Avatar */}
                                         <div className="relative flex-shrink-0">
@@ -272,9 +276,9 @@ export function CallHistory({
                                             </div>
                                         </div>
 
-                                        {/* Action buttons */}
+                                        {/* Action buttons - always visible on mobile */}
                                         {friend && (
-                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => onCall(friend, false)}
                                                     disabled={isCallActive}

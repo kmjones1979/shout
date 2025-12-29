@@ -489,11 +489,13 @@ function DashboardContent({
 
     const {
         incomingCall,
+        outgoingCall,
         remoteHangup,
         startCall,
         acceptCall,
         rejectCall,
         endCall: endCallSignaling,
+        cancelCall,
         clearRemoteHangup,
     } = useCallSignaling(userAddress);
 
@@ -1221,6 +1223,12 @@ function DashboardContent({
             console.log(
                 "[Dashboard] Call was rejected (likely DND) - not joining"
             );
+            // Log as missed call - they didn't answer
+            await logCall({
+                calleeAddress: friend.address,
+                callType: withVideo ? "video" : "audio",
+                status: "missed",
+            });
             setCurrentCallFriend(null);
             setCurrentCallProvider(null);
             clearRemoteHangup();
@@ -1392,10 +1400,11 @@ function DashboardContent({
 
     const handleRejectCall = async () => {
         stopRinging();
-        // Log declined call
-        if (incomingCall?.caller_address) {
+        // Log declined call - we are the callee declining a call from the caller
+        if (incomingCall?.caller_address && userAddress) {
             await logCall({
-                calleeAddress: incomingCall.caller_address, // We are the callee in this case
+                callerAddress: incomingCall.caller_address, // They called us
+                calleeAddress: userAddress, // We are the callee
                 callType: (incomingCall.call_type as "audio" | "video") || "audio",
                 status: "declined",
             });
@@ -1422,6 +1431,34 @@ function DashboardContent({
         notifyCallEnded,
         userSettings.soundEnabled,
     ]);
+
+    // Timeout for outgoing calls - mark as missed if no answer within 45 seconds
+    useEffect(() => {
+        if (!outgoingCall || !currentCallFriend) return;
+
+        const timeout = setTimeout(async () => {
+            console.log("[Dashboard] Outgoing call timed out - marking as missed");
+            // Log as missed call
+            await logCall({
+                calleeAddress: currentCallFriend.address,
+                callType: (outgoingCall.call_type as "audio" | "video") || "audio",
+                status: "missed",
+            });
+            // Cancel the outgoing call
+            await cancelCall();
+            await leaveCall();
+            setCurrentCallFriend(null);
+            setCurrentCallProvider(null);
+            // Show notification
+            setToast({
+                sender: currentCallFriend.ensName || currentCallFriend.nickname || "Friend",
+                message: "didn't answer",
+            });
+            setTimeout(() => setToast(null), 4000);
+        }, 45000); // 45 second timeout
+
+        return () => clearTimeout(timeout);
+    }, [outgoingCall, currentCallFriend, logCall, cancelCall, leaveCall]);
 
     const handleEndCall = async () => {
         // Track call analytics before ending

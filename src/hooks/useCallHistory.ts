@@ -40,16 +40,18 @@ export function useCallHistory(userAddress: string | null) {
             startedAt?: string;
             endedAt?: string;
             durationSeconds?: number;
+            callerAddress?: string; // Override if user is callee (for declined/missed incoming calls)
         }) => {
             if (!userAddress) return null;
 
             try {
+                const { callerAddress: overrideCallerAddress, ...rest } = params;
                 const res = await fetch("/api/calls", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        callerAddress: userAddress,
-                        ...params,
+                        callerAddress: overrideCallerAddress || userAddress,
+                        ...rest,
                     }),
                 });
 
