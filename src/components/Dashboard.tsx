@@ -3654,8 +3654,9 @@ function DashboardContent({
                     fetchJoinedChannels();
                 }}
                 userAddress={userAddress}
-                onJoinChannel={(channel) => {
+                onJoinChannel={async (channel) => {
                     setIsBrowseChannelsOpen(false);
+                    await fetchJoinedChannels(); // Refresh the list immediately
                     setSelectedChannel(channel);
                 }}
             />
@@ -3669,6 +3670,7 @@ function DashboardContent({
                     userAddress={userAddress}
                     onLeave={async () => {
                         await leaveChannel(selectedChannel.id);
+                        await fetchJoinedChannels(); // Refresh the list
                         setSelectedChannel(null);
                     }}
                 />
