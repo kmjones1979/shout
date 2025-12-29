@@ -109,6 +109,7 @@ export function EditAgentModal({ isOpen, onClose, agent, onSave, userAddress }: 
     const [newApiMethod, setNewApiMethod] = useState<"GET" | "POST" | "PUT" | "DELETE">("GET");
     const [newApiKey, setNewApiKey] = useState("");
     const [newApiDescription, setNewApiDescription] = useState("");
+    const [newApiHeaders, setNewApiHeaders] = useState("");
     
     // UI state
     const [isSaving, setIsSaving] = useState(false);
@@ -224,12 +225,33 @@ export function EditAgentModal({ isOpen, onClose, agent, onSave, userAddress }: 
             x402PriceCents: 1,
         };
         
+        // Parse headers from JSON or key:value format
+        if (newApiHeaders.trim()) {
+            try {
+                // Try JSON format first
+                newTool.headers = JSON.parse(newApiHeaders);
+            } catch {
+                // Try key:value format (one per line)
+                const headers: Record<string, string> = {};
+                newApiHeaders.split("\n").forEach(line => {
+                    const [key, ...valueParts] = line.split(":");
+                    if (key && valueParts.length > 0) {
+                        headers[key.trim()] = valueParts.join(":").trim();
+                    }
+                });
+                if (Object.keys(headers).length > 0) {
+                    newTool.headers = headers;
+                }
+            }
+        }
+        
         setApiTools([...apiTools, newTool]);
         setNewApiName("");
         setNewApiUrl("");
         setNewApiMethod("GET");
         setNewApiKey("");
         setNewApiDescription("");
+        setNewApiHeaders("");
         setShowAddApi(false);
     };
 
@@ -886,29 +908,57 @@ export function EditAgentModal({ isOpen, onClose, agent, onSave, userAddress }: 
                                             {apiTools.map(tool => (
                                                 <div key={tool.id} className="p-3 bg-zinc-800 border border-zinc-700 rounded-xl">
                                                     <div className="flex items-start justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`text-xs font-mono px-2 py-0.5 rounded ${
-                                                                tool.method === "GET" ? "bg-green-500/20 text-green-400" :
-                                                                tool.method === "POST" ? "bg-blue-500/20 text-blue-400" :
-                                                                tool.method === "PUT" ? "bg-yellow-500/20 text-yellow-400" :
-                                                                "bg-red-500/20 text-red-400"
-                                                            }`}>{tool.method}</span>
-                                                            <div>
-                                                                <p className="text-sm font-medium text-white">{tool.name}</p>
-                                                                <p className="text-xs text-zinc-500 truncate max-w-[200px]">{tool.url}</p>
+                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                            <select
+                                                                value={tool.method}
+                                                                onChange={(e) => updateApiTool(tool.id, { method: e.target.value as "GET" | "POST" | "PUT" | "DELETE" })}
+                                                                className={`text-xs font-mono px-2 py-0.5 rounded cursor-pointer focus:outline-none ${
+                                                                    tool.method === "GET" ? "bg-green-500/20 text-green-400" :
+                                                                    tool.method === "POST" ? "bg-blue-500/20 text-blue-400" :
+                                                                    tool.method === "PUT" ? "bg-yellow-500/20 text-yellow-400" :
+                                                                    "bg-red-500/20 text-red-400"
+                                                                }`}
+                                                            >
+                                                                <option value="GET">GET</option>
+                                                                <option value="POST">POST</option>
+                                                                <option value="PUT">PUT</option>
+                                                                <option value="DELETE">DELETE</option>
+                                                            </select>
+                                                            <div className="flex-1 min-w-0">
+                                                                <input
+                                                                    type="text"
+                                                                    value={tool.name}
+                                                                    onChange={(e) => updateApiTool(tool.id, { name: e.target.value })}
+                                                                    className="w-full bg-transparent border-b border-transparent hover:border-zinc-600 focus:border-cyan-500 text-sm font-medium text-white focus:outline-none px-0 py-0.5"
+                                                                    placeholder="API name"
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={tool.url}
+                                                                    onChange={(e) => updateApiTool(tool.id, { url: e.target.value })}
+                                                                    className="w-full bg-transparent border-b border-transparent hover:border-zinc-600 focus:border-cyan-500 text-xs text-zinc-400 font-mono focus:outline-none px-0 py-0.5"
+                                                                    placeholder="API URL"
+                                                                />
                                                             </div>
                                                         </div>
                                                         <button
                                                             onClick={() => removeApiTool(tool.id)}
-                                                            className="text-zinc-500 hover:text-red-400 text-sm"
+                                                            className="text-zinc-500 hover:text-red-400 text-sm shrink-0 ml-2"
                                                         >
                                                             ✕
                                                         </button>
                                                     </div>
                                                     
-                                                    {tool.description && (
-                                                        <p className="text-xs text-zinc-400 mb-2">{tool.description}</p>
-                                                    )}
+                                                    {/* Description */}
+                                                    <div className="mb-2">
+                                                        <input
+                                                            type="text"
+                                                            value={tool.description || ""}
+                                                            onChange={(e) => updateApiTool(tool.id, { description: e.target.value || undefined })}
+                                                            placeholder="Description (optional)"
+                                                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-cyan-500"
+                                                        />
+                                                    </div>
 
                                                     {/* API Key input */}
                                                     <div className="mb-2">
@@ -919,6 +969,41 @@ export function EditAgentModal({ isOpen, onClose, agent, onSave, userAddress }: 
                                                             placeholder="API Key (optional)"
                                                             className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-white text-xs font-mono focus:outline-none focus:border-cyan-500"
                                                         />
+                                                    </div>
+
+                                                    {/* Custom Headers */}
+                                                    <div className="mb-2">
+                                                        <details className="group">
+                                                            <summary className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-300 flex items-center gap-1">
+                                                                <span className="group-open:rotate-90 transition-transform">▶</span>
+                                                                Headers {tool.headers && Object.keys(tool.headers).length > 0 && (
+                                                                    <span className="text-cyan-400">({Object.keys(tool.headers).length})</span>
+                                                                )}
+                                                            </summary>
+                                                            <div className="mt-2">
+                                                                <textarea
+                                                                    value={tool.headers ? Object.entries(tool.headers).map(([k, v]) => `${k}: ${v}`).join("\n") : ""}
+                                                                    onChange={(e) => {
+                                                                        const text = e.target.value;
+                                                                        if (!text.trim()) {
+                                                                            updateApiTool(tool.id, { headers: undefined });
+                                                                            return;
+                                                                        }
+                                                                        const headers: Record<string, string> = {};
+                                                                        text.split("\n").forEach(line => {
+                                                                            const [key, ...valueParts] = line.split(":");
+                                                                            if (key && valueParts.length > 0) {
+                                                                                headers[key.trim()] = valueParts.join(":").trim();
+                                                                            }
+                                                                        });
+                                                                        updateApiTool(tool.id, { headers: Object.keys(headers).length > 0 ? headers : undefined });
+                                                                    }}
+                                                                    placeholder="Header-Name: value&#10;Another-Header: value"
+                                                                    rows={2}
+                                                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-white text-xs font-mono focus:outline-none focus:border-cyan-500 resize-none"
+                                                                />
+                                                            </div>
+                                                        </details>
                                                     </div>
 
                                                     {/* Per-tool pricing */}
@@ -1016,6 +1101,15 @@ export function EditAgentModal({ isOpen, onClose, agent, onSave, userAddress }: 
                                                 onChange={(e) => setNewApiKey(e.target.value)}
                                                 placeholder="API Key (optional)"
                                                 className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-cyan-500"
+                                            />
+
+                                            {/* Headers */}
+                                            <textarea
+                                                value={newApiHeaders}
+                                                onChange={(e) => setNewApiHeaders(e.target.value)}
+                                                placeholder="Custom Headers (optional)&#10;Format: Header-Name: value&#10;Or JSON: {&quot;Header&quot;: &quot;value&quot;}"
+                                                rows={2}
+                                                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:border-cyan-500 resize-none"
                                             />
 
                                             <button
