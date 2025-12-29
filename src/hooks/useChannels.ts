@@ -198,7 +198,7 @@ export function useChannelMessages(channelId: string | null, userAddress: string
     }, [channelId]);
 
     const sendMessage = useCallback(
-        async (content: string) => {
+        async (content: string, messageType: "text" | "image" = "text") => {
             if (!channelId || !userAddress || !content.trim()) return null;
 
             try {
@@ -208,6 +208,7 @@ export function useChannelMessages(channelId: string | null, userAddress: string
                     body: JSON.stringify({
                         senderAddress: userAddress,
                         content: content.trim(),
+                        messageType,
                     }),
                 });
 
