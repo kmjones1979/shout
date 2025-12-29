@@ -295,7 +295,7 @@ export function PWAInstallPrompt() {
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 50 }}
-                className="fixed bottom-24 left-4 right-4 z-50"
+                className="fixed bottom-32 left-4 right-4 z-[100]"
             >
                 <div className="glass-card rounded-2xl p-4 shadow-xl border border-[#FB8D22]/20 backdrop-blur-xl bg-zinc-900/90">
                     <div className="flex items-start gap-3">
@@ -393,7 +393,7 @@ export function PWAInstallPrompt() {
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 50 }}
-                    className="fixed bottom-24 left-4 right-4 z-50"
+                    className="fixed bottom-32 left-4 right-4 z-[100]"
                 >
                     <div className="glass-card rounded-2xl p-4 shadow-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-900/20 to-emerald-800/20 backdrop-blur-xl">
                         <div className="flex items-start gap-3">
