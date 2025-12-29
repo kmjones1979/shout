@@ -602,6 +602,46 @@ export function EditAgentModal({ isOpen, onClose, agent, onSave, userAddress }: 
                                         />
                                     </div>
 
+                                    {/* Public Chat Page URL */}
+                                    {visibility === "public" && agent && (
+                                        <div className="mt-4 p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
+                                            <h4 className="text-sm font-medium text-purple-400 flex items-center gap-2 mb-3">
+                                                🔗 Public Chat Page
+                                            </h4>
+                                            <p className="text-xs text-zinc-400 mb-2">
+                                                Anyone can chat with your agent at this URL:
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <code className="flex-1 text-xs bg-zinc-900 p-2 rounded text-purple-400 break-all">
+                                                    {typeof window !== 'undefined' ? `${window.location.origin}/agent/${agent.id}` : `/agent/${agent.id}`}
+                                                </code>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const url = `${window.location.origin}/agent/${agent.id}`;
+                                                        navigator.clipboard.writeText(url);
+                                                    }}
+                                                    className="px-3 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded text-xs"
+                                                >
+                                                    📋
+                                                </button>
+                                                <a
+                                                    href={`/agent/${agent.id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="px-3 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded text-xs"
+                                                >
+                                                    ↗️
+                                                </a>
+                                            </div>
+                                            {x402Enabled && (
+                                                <p className="text-xs text-amber-400 mt-2">
+                                                    💰 x402 payments will be required for chat
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* x402 Configuration */}
                                     {x402Enabled && (
                                         <div className="mt-4 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-4">
