@@ -16,6 +16,8 @@ import { AddFriendModal } from "./AddFriendModal";
 import { VoiceCallUI } from "./VoiceCallUI";
 import { IncomingCallModal } from "./IncomingCallModal";
 import { ChatModal } from "./ChatModal";
+import { CallHistory } from "./CallHistory";
+import { useCallHistory } from "@/hooks/useCallHistory";
 import { UsernameClaimModal } from "./UsernameClaimModal";
 import { PhoneVerificationModal } from "./PhoneVerificationModal";
 import { XMTPProvider, useXMTPContext } from "@/context/WakuProvider";
@@ -490,6 +492,11 @@ function DashboardContent({
         endCall: endCallSignaling,
         clearRemoteHangup,
     } = useCallSignaling(userAddress);
+
+    // Call history tracking
+    const { logCall, updateCall } = useCallHistory(userAddress);
+    const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+    const [callStartTime, setCallStartTime] = useState<Date | null>(null);
 
     // Waku works with both EVM and Solana addresses
     const wakuContext = useXMTPContext();
@@ -1268,8 +1275,23 @@ function DashboardContent({
             );
         }
 
-        if (success && userSettings.soundEnabled) {
-            notifyCallConnected();
+        if (success) {
+            if (userSettings.soundEnabled) {
+                notifyCallConnected();
+            }
+            // Log call to history
+            const startTime = new Date();
+            setCallStartTime(startTime);
+            const call = await logCall({
+                calleeAddress: friend.address,
+                callType: withVideo ? "video" : "audio",
+                status: "completed", // Will be updated when call ends
+                channelName,
+                startedAt: startTime.toISOString(),
+            });
+            if (call) {
+                setCurrentCallId(call.id);
+            }
         }
     };
 
@@ -1353,6 +1375,14 @@ function DashboardContent({
 
     const handleRejectCall = async () => {
         stopRinging();
+        // Log declined call
+        if (incomingCall?.caller_address) {
+            await logCall({
+                calleeAddress: incomingCall.caller_address, // We are the callee in this case
+                callType: (incomingCall.call_type as "audio" | "video") || "audio",
+                status: "declined",
+            });
+        }
         await rejectCall();
     };
 
@@ -1385,6 +1415,21 @@ function DashboardContent({
             } else {
                 trackVoiceCall(callDurationMinutes);
             }
+        }
+
+        // Update call history with end time and duration
+        if (currentCallId) {
+            const endTime = new Date();
+            const durationSeconds = callStartTime 
+                ? Math.round((endTime.getTime() - callStartTime.getTime()) / 1000)
+                : duration;
+            await updateCall(currentCallId, {
+                endedAt: endTime.toISOString(),
+                durationSeconds,
+                status: "completed",
+            });
+            setCurrentCallId(null);
+            setCallStartTime(null);
         }
 
         if (userSettings.soundEnabled) {
@@ -3147,23 +3192,55 @@ function DashboardContent({
                                         Calls
                                     </h2>
                                     <p className="text-zinc-500 text-sm mt-1">
-                                        Voice and video calls with friends
+                                        Voice and video call history
                                     </p>
                                 </div>
+                                {/* Quick call button */}
+                                {friendsListData.length > 0 && (
+                                    <div className="relative group">
+                                        <button
+                                            className="py-2 px-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium hover:shadow-lg hover:shadow-green-500/25 transition-all flex items-center gap-2"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                            </svg>
+                                            New Call
+                                        </button>
+                                        {/* Dropdown with friends */}
+                                        <div className="absolute right-0 top-full mt-2 w-64 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 max-h-64 overflow-y-auto">
+                                            <div className="p-2">
+                                                <p className="text-xs text-zinc-500 px-2 py-1">Select a friend to call</p>
+                                                {friendsListData.slice(0, 10).map((friend) => (
+                                                    <button
+                                                        key={friend.id}
+                                                        onClick={() => handleCall(friend, false)}
+                                                        disabled={callState !== "idle"}
+                                                        className="w-full flex items-center gap-3 p-2 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
+                                                    >
+                                                        {friend.avatar ? (
+                                                            <img src={friend.avatar} alt="" className="w-8 h-8 rounded-full" />
+                                                        ) : (
+                                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-sm text-white">
+                                                                {(friend.nickname || friend.reachUsername || friend.ensName || friend.address)?.[0]?.toUpperCase() || "?"}
+                                                            </div>
+                                                        )}
+                                                        <span className="text-sm text-white truncate">
+                                                            {friend.nickname || friend.reachUsername || friend.ensName || `${friend.address.slice(0, 6)}...${friend.address.slice(-4)}`}
+                                                        </span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="p-6">
-                            <FriendsList
-                                friends={friendsListData}
+                            <CallHistory
                                 userAddress={userAddress}
+                                friends={friendsListData}
                                 onCall={handleCall}
-                                onVideoCall={handleVideoCall}
-                                onChat={undefined}
-                                onRemove={handleRemoveFriend}
                                 isCallActive={callState !== "idle"}
-                                unreadCounts={{}}
-                                hideChat={true}
-                                friendsWakuStatus={friendsWakuStatus}
                             />
                         </div>
                     </div>
