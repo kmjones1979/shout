@@ -48,6 +48,16 @@ export async function POST(request: NextRequest) {
         if (!url) {
             return NextResponse.json({ error: "URL is required" }, { status: 400 });
         }
+        
+        // Validate URL format
+        try {
+            new URL(url);
+        } catch {
+            return NextResponse.json({ 
+                error: "Invalid URL format", 
+                details: "Please enter a valid URL starting with http:// or https://" 
+            }, { status: 400 });
+        }
 
         const headers: Record<string, string> = {
             "Content-Type": "application/json",

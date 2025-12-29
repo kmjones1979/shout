@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { useAgents, useFavoriteAgents, Agent, DiscoveredAgent } from "@/hooks/useAgents";
+import { useAgents, useFavoriteAgents, Agent, DiscoveredAgent, MCPServer, APITool } from "@/hooks/useAgents";
 import { CreateAgentModal } from "./CreateAgentModal";
 import { AgentChatModal } from "./AgentChatModal";
 import { EditAgentModal } from "./EditAgentModal";
@@ -79,8 +79,18 @@ export function AgentsSection({ userAddress }: AgentsSectionProps) {
         personality?: string;
         avatarEmoji?: string;
         visibility?: "private" | "friends" | "public";
+        tags?: string[];
         webSearchEnabled?: boolean;
         useKnowledgeBase?: boolean;
+        mcpEnabled?: boolean;
+        apiEnabled?: boolean;
+        x402Enabled?: boolean;
+        x402PriceCents?: number;
+        x402Network?: "base" | "base-sepolia";
+        x402WalletAddress?: string;
+        x402PricingMode?: "global" | "per_tool";
+        mcpServers?: MCPServer[];
+        apiTools?: APITool[];
     }) => {
         await updateAgent(agentId, updates);
     };
