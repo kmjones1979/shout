@@ -691,33 +691,43 @@ export function EditAgentModal({ isOpen, onClose, agent, onSave, userAddress }: 
                                             {mcpServers.map(server => (
                                                 <div key={server.id} className="p-3 bg-zinc-800 border border-zinc-700 rounded-xl">
                                                     <div className="flex items-start justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-lg">🔌</span>
-                                                            <div>
-                                                                <p className="text-sm font-medium text-white">{server.name}</p>
-                                                                <p className="text-xs text-zinc-500 truncate max-w-[200px]">{server.url}</p>
+                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                            <span className="text-lg shrink-0">🔌</span>
+                                                            <div className="flex-1 min-w-0">
+                                                                <input
+                                                                    type="text"
+                                                                    value={server.name}
+                                                                    onChange={(e) => updateMcpServer(server.id, { name: e.target.value })}
+                                                                    className="w-full bg-transparent border-b border-transparent hover:border-zinc-600 focus:border-purple-500 text-sm font-medium text-white focus:outline-none px-0 py-0.5"
+                                                                    placeholder="Server name"
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={server.url}
+                                                                    onChange={(e) => updateMcpServer(server.id, { url: e.target.value })}
+                                                                    className="w-full bg-transparent border-b border-transparent hover:border-zinc-600 focus:border-purple-500 text-xs text-zinc-400 font-mono focus:outline-none px-0 py-0.5"
+                                                                    placeholder="Server URL"
+                                                                />
                                                             </div>
                                                         </div>
                                                         <button
                                                             onClick={() => removeMcpServer(server.id)}
-                                                            className="text-zinc-500 hover:text-red-400 text-sm"
+                                                            className="text-zinc-500 hover:text-red-400 text-sm shrink-0 ml-2"
                                                         >
                                                             ✕
                                                         </button>
                                                     </div>
                                                     
-                                                    {/* API Key input if needed */}
-                                                    {server.apiKey !== undefined && (
-                                                        <div className="mb-2">
-                                                            <input
-                                                                type="password"
-                                                                value={server.apiKey}
-                                                                onChange={(e) => updateMcpServer(server.id, { apiKey: e.target.value })}
-                                                                placeholder="API Key (required)"
-                                                                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-white text-xs font-mono focus:outline-none focus:border-purple-500"
-                                                            />
-                                                        </div>
-                                                    )}
+                                                    {/* API Key input */}
+                                                    <div className="mb-2">
+                                                        <input
+                                                            type="password"
+                                                            value={server.apiKey || ""}
+                                                            onChange={(e) => updateMcpServer(server.id, { apiKey: e.target.value || undefined })}
+                                                            placeholder="API Key (optional)"
+                                                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-white text-xs font-mono focus:outline-none focus:border-purple-500"
+                                                        />
+                                                    </div>
 
                                                     {/* Custom Headers */}
                                                     <div className="mb-2">
