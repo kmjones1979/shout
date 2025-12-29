@@ -412,33 +412,14 @@ export async function POST(
         }
 
         // Build enhanced system instructions with knowledge context
-        let systemInstructions = "";
+        // We build MCP results FIRST, then add them at the top of the system prompt
         
-        // Add critical instruction about tool usage FIRST (before personality)
-        if (agent.mcp_servers && agent.mcp_servers.length > 0) {
-            systemInstructions += "CRITICAL INSTRUCTION: When users ask you to 'search', 'look up', 'find docs', or mention tool names like 'Context7', they are asking you to USE the tools configured for you - NOT to write code that calls those tools. The tool calls are made automatically and results are provided below. Simply answer using that information. NEVER output code showing how to import or call these tools - that's not what the user wants.\n\n";
-        }
+        // Track MCP results to add BEFORE personality
+        let mcpResultsSection = "";
         
-        systemInstructions += agent.system_instructions || `You are a helpful AI assistant named ${agent.name}.`;
-        if (knowledgeContext) {
-            systemInstructions += `\n\nYou have access to the following knowledge sources. Use this information to help answer questions when relevant:${knowledgeContext}`;
-        }
-
         // Add MCP server information and call them (if MCP is enabled)
         const mcpEnabled = agent.mcp_enabled !== false; // Default true
         if (mcpEnabled && agent.mcp_servers && agent.mcp_servers.length > 0) {
-            systemInstructions += "\n\n## Available MCP Servers:\n";
-            for (const server of agent.mcp_servers) {
-                systemInstructions += `- **${server.name}** (${server.url})`;
-                if (server.description) {
-                    systemInstructions += `: ${server.description}`;
-                }
-                if (server.instructions) {
-                    systemInstructions += `\n  Instructions: ${server.instructions}`;
-                }
-                systemInstructions += "\n";
-            }
-            
             // Try to call MCP servers dynamically using AI-driven tool selection
             const mcpResults: string[] = [];
             for (const server of agent.mcp_servers) {
@@ -494,19 +475,13 @@ export async function POST(
                             console.log(`[MCP] No tools discovered, trying Google Search for context`);
                             const searchContext = await getMcpServerContext(server.name, server.url);
                             if (searchContext) {
-                                systemInstructions += `\n\nContext about ${server.name}:\n${searchContext}`;
+                                mcpResults.push(`\n\nContext about ${server.name}:\n${searchContext}`);
                             }
                             continue;
                         }
                         
-                        // Add discovered tools to system instructions
-                        let toolsContext = `\n\nAvailable tools from ${server.name}:\n`;
-                        for (const tool of availableTools) {
-                            toolsContext += `- ${tool.name}`;
-                            if (tool.description) toolsContext += `: ${tool.description.substring(0, 200)}...`;
-                            toolsContext += "\n";
-                        }
-                        systemInstructions += toolsContext;
+                        // Log discovered tools (we'll rely on the results, not tool listing)
+                        console.log(`[MCP] Discovered ${availableTools.length} tools from ${server.name}`);
                         
                         // Step 2: Use AI to determine which tool to call (up to 3 iterations)
                         let previousResults = "";
@@ -561,10 +536,47 @@ export async function POST(
             }
             
             if (mcpResults.length > 0) {
-                systemInstructions += "\n\n## MCP Server Results\n";
-                systemInstructions += "IMPORTANT: The following information was retrieved from MCP servers. Use this ACTUAL DATA to answer the user's question. DO NOT output code showing how to call MCP servers - the calls have already been made and the results are below. Simply present the information to the user in a helpful way.\n\n";
-                systemInstructions += mcpResults.join("\n");
+                mcpResultsSection = `
+## RETRIEVED INFORMATION (USE THIS DATA - DO NOT OUTPUT CODE)
+
+The following information was ALREADY retrieved from MCP servers on behalf of the user.
+Your job is to PRESENT this information in a helpful, formatted way.
+
+ABSOLUTE RULES:
+1. DO NOT write Python, JavaScript, or ANY code showing how to call these tools
+2. DO NOT explain how to use the MCP API
+3. DO NOT show import statements or function calls
+4. JUST use the retrieved data to answer the user's question directly
+5. Format the information nicely with markdown
+
+${mcpResults.join("\n")}
+
+---END OF RETRIEVED DATA---
+
+Remember: The user asked a question and the answer is in the data above. Just present it nicely.
+`;
             }
+        }
+        
+        // Now build the final system instructions with MCP results FIRST
+        let systemInstructions = "";
+        
+        // Add MCP results at the VERY TOP if we have them
+        if (mcpResultsSection) {
+            systemInstructions += mcpResultsSection;
+        }
+        
+        // Then add the agent's personality
+        systemInstructions += agent.system_instructions || `You are a helpful AI assistant named ${agent.name}.`;
+        
+        // Add knowledge context
+        if (knowledgeContext) {
+            systemInstructions += `\n\nYou have access to the following knowledge sources. Use this information to help answer questions when relevant:${knowledgeContext}`;
+        }
+        
+        // Add a final reminder if we had MCP results
+        if (mcpResultsSection) {
+            systemInstructions += `\n\n[REMINDER: Answer using the RETRIEVED INFORMATION at the top. DO NOT output code.]`;
         }
 
         // Add API tool information and potentially call them (if API is enabled)
