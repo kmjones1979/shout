@@ -554,7 +554,9 @@ export async function POST(
             }
             
             if (mcpResults.length > 0) {
-                systemInstructions += "\n\n## MCP Server Results (use this information to answer):\n" + mcpResults.join("\n");
+                systemInstructions += "\n\n## MCP Server Results\n";
+                systemInstructions += "IMPORTANT: The following information was retrieved from MCP servers. Use this ACTUAL DATA to answer the user's question. DO NOT output code showing how to call MCP servers - the calls have already been made and the results are below. Simply present the information to the user in a helpful way.\n\n";
+                systemInstructions += mcpResults.join("\n");
             }
         }
 
