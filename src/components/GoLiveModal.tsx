@@ -94,6 +94,60 @@ export function GoLiveModal({
         setCameraReady(false);
     }, []);
 
+    // Comprehensive cleanup function to stop ALL media tracks
+    const stopAllMediaTracks = useCallback(() => {
+        console.log("[GoLive] Stopping all media tracks...");
+        
+        // Stop our tracked stream
+        if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach(track => {
+                track.stop();
+                console.log("[GoLive] Stopped track:", track.kind, track.id);
+            });
+            mediaStreamRef.current = null;
+        }
+        
+        // Stop all video element streams (including Broadcast component's video)
+        try {
+            const videoElements = document.querySelectorAll('video');
+            videoElements.forEach(video => {
+                const stream = video.srcObject as MediaStream;
+                if (stream) {
+                    stream.getTracks().forEach(track => {
+                        track.stop();
+                        console.log("[GoLive] Stopped track from video element:", track.kind, track.id);
+                    });
+                    video.srcObject = null;
+                }
+            });
+        } catch (e) {
+            console.error("[GoLive] Error cleaning up video streams:", e);
+        }
+        
+        // Nuclear option: Stop ALL active media tracks from all media elements
+        // This is needed because the Broadcast component might hold tracks internally
+        try {
+            // Stop all tracks from video and audio elements
+            const allMediaElements = document.querySelectorAll('video, audio');
+            allMediaElements.forEach(element => {
+                const mediaElement = element as HTMLVideoElement | HTMLAudioElement;
+                if (mediaElement.srcObject) {
+                    const stream = mediaElement.srcObject as MediaStream;
+                    stream.getTracks().forEach(track => {
+                        track.stop();
+                        console.log("[GoLive] Stopped track from media element:", track.kind, track.id);
+                    });
+                    mediaElement.srcObject = null;
+                }
+            });
+        } catch (e) {
+            console.error("[GoLive] Error in nuclear cleanup:", e);
+        }
+        
+        // Clear ingest URL to unmount Broadcast component
+        setIngestUrl(null);
+    }, []);
+
     // Handle creating stream and getting ingest URL
     const handleGoLive = async () => {
         setIsStarting(true);
@@ -147,61 +201,54 @@ export function GoLiveModal({
         setStatus("ending");
 
         try {
-            await onEndStream(currentStream.id);
+            // First, stop all media tracks BEFORE ending the stream
+            // This ensures the Broadcast component releases the camera
+            stopAllMediaTracks();
             
-            // Stop all camera/media tracks from the Broadcast component
-            try {
-                const videoElements = document.querySelectorAll('video');
-                videoElements.forEach(video => {
-                    const stream = video.srcObject as MediaStream;
-                    if (stream) {
-                        stream.getTracks().forEach(track => track.stop());
-                        video.srcObject = null;
-                    }
-                });
-            } catch (e) {
-                console.error("[GoLive] Error cleaning up video streams:", e);
-            }
+            // Small delay to let the Broadcast component clean up
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            await onEndStream(currentStream.id);
             
             setStatus("preview");
             setDuration(0);
             setIngestUrl(null);
-            // Restart preview camera
-            startCamera();
+            
+            // Don't restart preview camera - user is ending the stream
+            // They can reopen the modal if they want to go live again
         } catch (e) {
             console.error("[GoLive] Error ending stream:", e);
             setError("Failed to end stream properly");
+            // Still try to clean up
+            stopAllMediaTracks();
         }
     };
 
     // Handle close
-    const handleClose = () => {
+    const handleClose = async () => {
         if (status === "live") {
             if (!confirm("You are currently live. End stream and close?")) {
                 return;
             }
-            handleEndStream();
+            await handleEndStream();
         }
 
-        // Stop all camera/media tracks
+        // Clear ingest URL first to unmount Broadcast component
+        setIngestUrl(null);
+        
+        // Wait a bit for Broadcast component to unmount
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Comprehensive cleanup - stop all tracks
+        stopAllMediaTracks();
         stopCamera();
         
-        // Also stop any tracks that might be held by other elements
-        // This ensures the green camera light turns off
-        try {
-            const videoElements = document.querySelectorAll('video');
-            videoElements.forEach(video => {
-                const stream = video.srcObject as MediaStream;
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                    video.srcObject = null;
-                }
-            });
-        } catch (e) {
-            console.error("[GoLive] Error cleaning up video streams:", e);
-        }
+        // Additional cleanup pass after a short delay
+        setTimeout(() => {
+            stopAllMediaTracks();
+            stopCamera();
+        }, 200);
         
-        setIngestUrl(null);
         setStatus("preview");
         onClose();
     };
@@ -220,38 +267,35 @@ export function GoLiveModal({
                 }
             }
         } else if (!isOpen) {
-            stopCamera();
+            // Modal is closing - comprehensive cleanup
+            setIngestUrl(null); // Unmount Broadcast component first
+            setTimeout(() => {
+                stopAllMediaTracks();
+                stopCamera();
+            }, 100);
             setStatus("preview");
             setTitle("");
             setError(null);
             setDuration(0);
-            setIngestUrl(null);
         }
     }, [isOpen, currentStream?.status, currentStream?.stream_id, ingestUrl, isStarting, cameraReady, startCamera, stopCamera]);
 
     // Cleanup on unmount - ensure camera is released
     useEffect(() => {
         return () => {
-            // Stop our tracked stream
-            if (mediaStreamRef.current) {
-                mediaStreamRef.current.getTracks().forEach(track => track.stop());
-                mediaStreamRef.current = null;
-            }
-            // Stop any video element streams (catches Livepeer Broadcast camera)
-            try {
-                const videoElements = document.querySelectorAll('video');
-                videoElements.forEach(video => {
-                    const stream = video.srcObject as MediaStream;
-                    if (stream) {
-                        stream.getTracks().forEach(track => track.stop());
-                        video.srcObject = null;
-                    }
-                });
-            } catch (e) {
-                // Ignore cleanup errors
-            }
+            console.log("[GoLive] Component unmounting, cleaning up all media tracks...");
+            // Clear ingest URL first to unmount Broadcast component
+            setIngestUrl(null);
+            // Use the comprehensive cleanup function
+            stopAllMediaTracks();
+            stopCamera();
+            // Additional cleanup pass after a short delay
+            setTimeout(() => {
+                stopAllMediaTracks();
+                stopCamera();
+            }, 100);
         };
-    }, []);
+    }, [stopAllMediaTracks, stopCamera]);
 
     // Track duration while live
     useEffect(() => {

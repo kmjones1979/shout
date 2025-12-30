@@ -264,6 +264,10 @@ export default function PublicLivePage() {
             if (res.ok) {
                 const data = await res.json();
                 if (data.messages && data.messages.length > 0) {
+                    // Debug: log first message to see user data
+                    if (data.messages.length > 0 && !lastMessageTimeRef.current) {
+                        console.log("[Live Chat] Sample message user data:", data.messages[0].user);
+                    }
                     setMessages((prev) => {
                         // Merge new messages, avoiding duplicates
                         const existingIds = new Set(prev.map((m) => m.id));
@@ -449,7 +453,9 @@ export default function PublicLivePage() {
 
         // Set initial muted state for autoplay (browsers require muted autoplay)
         video.muted = true;
+        video.volume = 1; // Explicitly set volume to 1
         setIsMuted(true);
+        setVolume(1);
 
         const handlePlay = () => setIsPlaying(true);
         const handlePause = () => setIsPlaying(false);
@@ -487,15 +493,19 @@ export default function PublicLivePage() {
         
         // If unmuting, ensure volume is set and video is playing
         if (!newMutedState) {
-            // Set a reasonable volume if it's 0
-            if (volume === 0) {
-                const newVolume = 0.5;
-                video.volume = newVolume;
-                setVolume(newVolume);
-            }
             // Unmute first
             video.muted = false;
             setIsMuted(false);
+            
+            // Explicitly set volume - browsers need this as part of user interaction
+            // Trick: Set volume to slightly less, then back to target
+            // This forces the browser to recognize the volume change as user-initiated
+            const targetVolume = volume > 0 ? volume : 1;
+            video.volume = Math.max(0.01, targetVolume - 0.01);
+            await new Promise(resolve => setTimeout(resolve, 10));
+            video.volume = targetVolume;
+            setVolume(targetVolume);
+            
             // Ensure video is playing (browser may have paused muted autoplay)
             if (video.paused) {
                 try {
@@ -513,15 +523,18 @@ export default function PublicLivePage() {
 
     const handleVolumeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const newVolume = parseFloat(e.target.value);
-        setVolume(newVolume);
         if (videoRef.current) {
             const video = videoRef.current;
+            
+            // Set volume first
             video.volume = newVolume;
+            setVolume(newVolume);
             
             // Unmute if volume is increased from 0
             if (newVolume > 0 && video.muted) {
                 video.muted = false;
                 setIsMuted(false);
+                
                 // Ensure video is playing when unmuting via volume slider
                 if (video.paused) {
                     try {
@@ -530,6 +543,10 @@ export default function PublicLivePage() {
                         console.error("[Live] Failed to play after volume change:", e);
                     }
                 }
+                
+                // Force audio to be enabled by triggering a volume change
+                // This helps with browsers that need explicit user interaction
+                video.dispatchEvent(new Event('volumechange'));
             }
             // Mute if volume is set to 0
             if (newVolume === 0) {
@@ -543,9 +560,10 @@ export default function PublicLivePage() {
     
     // Get display name with priority: username > display_name > ens_name > formatted address
     const getDisplayName = (msg: ChatMessage) => {
-        if (msg.user?.username) return msg.user.username;
-        if (msg.user?.display_name) return msg.user.display_name;
-        if (msg.user?.ens_name) return msg.user.ens_name;
+        // Check for username (handle both null and empty string)
+        if (msg.user?.username && msg.user.username.trim()) return msg.user.username.trim();
+        if (msg.user?.display_name && msg.user.display_name.trim()) return msg.user.display_name.trim();
+        if (msg.user?.ens_name && msg.user.ens_name.trim()) return msg.user.ens_name.trim();
         return formatAddress(msg.user_address);
     };
     
