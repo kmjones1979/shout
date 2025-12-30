@@ -2900,78 +2900,6 @@ function DashboardContent({
                             </div>
                         </div>
 
-                        {/* Censorship Resistance Toggle */}
-                        <div className="px-6 py-4 border-b border-zinc-800">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center transition-colors ${
-                                        userSettings.decentralizedCalls
-                                            ? "from-emerald-500/20 to-emerald-600/20"
-                                            : "from-zinc-600/20 to-zinc-700/20"
-                                    }`}>
-                                        <svg
-                                            className={`w-5 h-5 transition-colors ${
-                                                userSettings.decentralizedCalls
-                                                    ? "text-emerald-400"
-                                                    : "text-zinc-500"
-                                            }`}
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
-                                            />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p className="text-white font-medium">
-                                            Censorship Resistance
-                                        </p>
-                                        <p className="text-zinc-500 text-xs">
-                                            {userSettings.decentralizedCalls
-                                                ? "Using Web3 Provider"
-                                                : "Using Centralized Provider"}
-                                        </p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={toggleDecentralizedCalls}
-                                    disabled={
-                                        !isHuddle01Configured &&
-                                        !userSettings.decentralizedCalls
-                                    }
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                        userSettings.decentralizedCalls
-                                            ? "bg-emerald-500"
-                                            : "bg-zinc-700"
-                                    } ${
-                                        !isHuddle01Configured &&
-                                        !userSettings.decentralizedCalls
-                                            ? "opacity-50 cursor-not-allowed"
-                                            : ""
-                                    }`}
-                                >
-                                    <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                            userSettings.decentralizedCalls
-                                                ? "translate-x-6"
-                                                : "translate-x-1"
-                                        }`}
-                                    />
-                                </button>
-                            </div>
-                            {!isHuddle01Configured && (
-                                <p className="text-amber-500/80 text-xs mt-2">
-                                    Set NEXT_PUBLIC_HUDDLE01_PROJECT_ID and
-                                    NEXT_PUBLIC_HUDDLE01_API_KEY to enable
-                                </p>
-                            )}
-                        </div>
-
                         {/* Daily Bonus Claim Card */}
                         {dailyBonusAvailable && !dailyBonusClaimed && (
                             <div className="mx-6 mt-4 mb-2">
@@ -3634,6 +3562,8 @@ function DashboardContent({
                 onClose={() => setIsSettingsModalOpen(false)}
                 settings={userSettings}
                 onToggleSound={toggleSound}
+                onToggleDecentralizedCalls={toggleDecentralizedCalls}
+                isHuddle01Configured={isHuddle01Configured}
                 pushSupported={pushSupported}
                 pushPermission={pushPermission}
                 pushSubscribed={pushSubscribed}

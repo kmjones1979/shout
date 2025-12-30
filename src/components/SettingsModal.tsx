@@ -8,6 +8,9 @@ type SettingsModalProps = {
     onClose: () => void;
     settings: UserSettings;
     onToggleSound: () => void;
+    // Censorship resistance props
+    onToggleDecentralizedCalls: () => void;
+    isHuddle01Configured: boolean;
     // Push notification props
     pushSupported: boolean;
     pushPermission: NotificationPermission;
@@ -23,6 +26,8 @@ export function SettingsModal({
     onClose,
     settings,
     onToggleSound,
+    onToggleDecentralizedCalls,
+    isHuddle01Configured,
     pushSupported,
     pushPermission,
     pushSubscribed,
@@ -113,6 +118,76 @@ export function SettingsModal({
 
                             {/* Settings List */}
                             <div className="space-y-2">
+                                {/* Censorship Resistance Section */}
+                                <div className="mb-4">
+                                    <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                                        Privacy & Security
+                                    </h3>
+
+                                    {/* Censorship Resistance Toggle */}
+                                    <button
+                                        onClick={onToggleDecentralizedCalls}
+                                        disabled={!isHuddle01Configured && !settings.decentralizedCalls}
+                                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                                settings.decentralizedCalls
+                                                    ? "bg-emerald-500/20"
+                                                    : "bg-zinc-700/50"
+                                            }`}>
+                                                <svg
+                                                    className={`w-4 h-4 transition-colors ${
+                                                        settings.decentralizedCalls
+                                                            ? "text-emerald-400"
+                                                            : "text-zinc-500"
+                                                    }`}
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                                                    />
+                                                </svg>
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-white font-medium">
+                                                    Censorship Resistance
+                                                </p>
+                                                <p className="text-zinc-500 text-xs">
+                                                    {settings.decentralizedCalls
+                                                        ? "Using Web3 Provider"
+                                                        : "Using Centralized Provider"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div
+                                            className={`w-11 h-6 rounded-full transition-colors relative ${
+                                                settings.decentralizedCalls
+                                                    ? "bg-emerald-500"
+                                                    : "bg-zinc-700"
+                                            }`}
+                                        >
+                                            <div
+                                                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                                                    settings.decentralizedCalls
+                                                        ? "translate-x-5"
+                                                        : "translate-x-0.5"
+                                                }`}
+                                            />
+                                        </div>
+                                    </button>
+                                    {!isHuddle01Configured && (
+                                        <p className="text-amber-500/80 text-xs mt-2 px-4">
+                                            Set NEXT_PUBLIC_HUDDLE01_PROJECT_ID and NEXT_PUBLIC_HUDDLE01_API_KEY to enable
+                                        </p>
+                                    )}
+                                </div>
+
                                 {/* Sound & Notifications Section */}
                                 <div className="mb-4">
                                     <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 px-1">
