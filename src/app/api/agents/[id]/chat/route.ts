@@ -609,41 +609,82 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                         .single();
                     
                     if (ownerSettings?.scheduling_enabled) {
-                        // Fetch availability for the next 7 days
-                        const startDate = new Date().toISOString();
-                        const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+                        // Get availability windows directly from database
+                        const { data: windows } = await supabase
+                            .from("shout_availability_windows")
+                            .select("day_of_week, start_time, end_time, timezone")
+                            .eq("wallet_address", agent.owner_address)
+                            .eq("is_active", true);
                         
-                        const availabilityResponse = await fetch(
-                            `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/scheduling/availability?userAddress=${agent.owner_address}&startDate=${startDate}&endDate=${endDate}`
-                        );
+                        const userTimezone = windows?.[0]?.timezone || "UTC";
                         
-                        if (availabilityResponse.ok) {
-                            const availabilityData = await availabilityResponse.json();
-                            const slots = availabilityData.availableSlots || [];
+                        // Generate available slots for the next 7 days
+                        const slots: { start: Date; end: Date }[] = [];
+                        const now = new Date();
+                        const duration = ownerSettings.scheduling_free_duration_minutes || 30;
+                        const advanceNoticeHours = 24;
+                        const minStartTime = new Date(now.getTime() + advanceNoticeHours * 60 * 60 * 1000);
+                        
+                        for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+                            const checkDate = new Date(now);
+                            checkDate.setDate(checkDate.getDate() + dayOffset);
+                            const dayOfWeek = checkDate.getDay();
                             
-                            // Group slots by date for cleaner presentation
-                            const slotsByDate: Record<string, string[]> = {};
-                            for (const slot of slots.slice(0, 30)) { // Limit to 30 slots
-                                const date = new Date(slot.start);
-                                const dateKey = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-                                const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                            const matchingWindows = (windows || []).filter(w => w.day_of_week === dayOfWeek);
+                            
+                            for (const window of matchingWindows) {
+                                // Parse start/end times (format: "HH:MM")
+                                const [startHour, startMin] = window.start_time.split(':').map(Number);
+                                const [endHour, endMin] = window.end_time.split(':').map(Number);
                                 
-                                if (!slotsByDate[dateKey]) {
-                                    slotsByDate[dateKey] = [];
+                                const slotStart = new Date(checkDate);
+                                slotStart.setHours(startHour, startMin, 0, 0);
+                                
+                                const windowEnd = new Date(checkDate);
+                                windowEnd.setHours(endHour, endMin, 0, 0);
+                                
+                                // Generate slots within this window
+                                let currentSlot = new Date(slotStart);
+                                while (currentSlot.getTime() + duration * 60 * 1000 <= windowEnd.getTime()) {
+                                    if (currentSlot >= minStartTime) {
+                                        slots.push({
+                                            start: new Date(currentSlot),
+                                            end: new Date(currentSlot.getTime() + duration * 60 * 1000)
+                                        });
+                                    }
+                                    currentSlot = new Date(currentSlot.getTime() + (duration + 15) * 60 * 1000); // duration + buffer
                                 }
-                                slotsByDate[dateKey].push(timeStr);
                             }
+                        }
+                        
+                        // Group slots by date for cleaner presentation
+                        const slotsByDate: Record<string, string[]> = {};
+                        for (const slot of slots.slice(0, 30)) {
+                            const date = slot.start;
+                            const dateKey = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: userTimezone });
+                            const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: userTimezone });
                             
-                            const scheduleLink = ownerSettings.scheduling_slug 
-                                ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/schedule/${ownerSettings.scheduling_slug}`
-                                : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/schedule/${agent.owner_address}`;
-                            
-                            schedulingContext = `
+                            if (!slotsByDate[dateKey]) {
+                                slotsByDate[dateKey] = [];
+                            }
+                            slotsByDate[dateKey].push(timeStr);
+                        }
+                        
+                        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.spritz.chat';
+                        const scheduleLink = ownerSettings.scheduling_slug 
+                            ? `${appUrl}/schedule/${ownerSettings.scheduling_slug}`
+                            : `${appUrl}/schedule/${agent.owner_address}`;
+                        
+                        const hasSlots = Object.keys(slotsByDate).length > 0;
+                        
+                        schedulingContext = `
 ## SCHEDULING INFORMATION
 
-You can help users schedule meetings with your creator. Here's the current availability:
+You can help users schedule meetings with your creator.${hasSlots ? ` Here's the current availability (times in ${userTimezone}):
 
-${Object.entries(slotsByDate).map(([date, times]) => `**${date}:** ${times.join(', ')}`).join('\n')}
+${Object.entries(slotsByDate).map(([date, times]) => `**${date}:** ${times.join(', ')}`).join('\n')}` : `
+
+(No specific availability windows configured yet - direct them to the booking link to see real-time availability)`}
 
 ${ownerSettings.scheduling_free_enabled ? `- **Free calls** available (${ownerSettings.scheduling_free_duration_minutes || 15} minutes)` : ''}
 ${ownerSettings.scheduling_paid_enabled ? `- **Paid sessions** available (${ownerSettings.scheduling_paid_duration_minutes || 30} minutes) - $${((ownerSettings.scheduling_price_cents || 0) / 100).toFixed(2)} USD` : ''}
@@ -658,8 +699,7 @@ When helping users schedule:
 
 DO NOT pretend you can directly book the meeting - always direct them to the booking link.
 `;
-                            console.log("[Chat] Added scheduling context with", Object.keys(slotsByDate).length, "days of availability");
-                        }
+                        console.log("[Chat] Added scheduling context with", Object.keys(slotsByDate).length, "days of availability,", slots.length, "total slots");
                     } else {
                         schedulingContext = `
 ## SCHEDULING NOTE
