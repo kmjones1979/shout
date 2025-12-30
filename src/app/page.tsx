@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
+import { useAccount, useReconnect } from "wagmi";
 import { useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import { PasskeyAuth } from "@/components/PasskeyAuth";
 import { WalletConnect } from "@/components/WalletConnect";
@@ -51,8 +51,14 @@ function hasSavedWalletSession(): boolean {
 export default function Home() {
     // EVM wallet via wagmi
     const { isReconnecting } = useAccount();
+    const { reconnect } = useReconnect();
     // AppKit disconnect (works for both EVM and Solana)
     const { disconnect: walletDisconnect } = useDisconnect();
+
+    // Explicitly trigger wallet reconnection on mount for PWA persistence
+    useEffect(() => {
+        reconnect();
+    }, [reconnect]);
 
     // Multi-chain wallet detection (EVM + Solana)
     const {

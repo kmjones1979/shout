@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { format, addDays, startOfDay, isSameDay } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
-import { useAccount, useDisconnect, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain, useReadContract, useConnect } from "wagmi";
+import { useAccount, useDisconnect, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain, useReadContract, useConnect, useReconnect } from "wagmi";
 import { createPublicClient, http, parseUnits, encodeFunctionData, formatUnits } from "viem";
 import { injected, coinbaseWallet } from "wagmi/connectors";
 import { base, baseSepolia, mainnet, arbitrum, optimism, polygon } from "wagmi/chains";
@@ -148,9 +150,16 @@ export default function SchedulePage({ params }: { params: Promise<{ slug: strin
     const [ensAvatar, setEnsAvatar] = useState<string | null>(null);
     
     // Wallet connection
+    const router = useRouter();
     const { address, isConnected, chain } = useAccount();
     const { connect, isPending: isConnecting } = useConnect();
     const { disconnect } = useDisconnect();
+    const { reconnect } = useReconnect();
+    
+    // Attempt to reconnect wallet on mount (for PWA persistence)
+    useEffect(() => {
+        reconnect();
+    }, [reconnect]);
     const { switchChain, switchChainAsync } = useSwitchChain();
     
     // Transaction state
@@ -487,6 +496,30 @@ export default function SchedulePage({ params }: { params: Promise<{ slug: strin
             </div>
 
             <div className="relative z-10 max-w-2xl mx-auto px-4 py-8 sm:py-16">
+                {/* Back Button */}
+                <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="mb-6"
+                >
+                    <button
+                        onClick={() => {
+                            // Try to go back, or go to home if no history
+                            if (window.history.length > 1) {
+                                router.back();
+                            } else {
+                                router.push("/");
+                            }
+                        }}
+                        className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group"
+                    >
+                        <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        <span className="text-sm font-medium">Back</span>
+                    </button>
+                </motion.div>
+
                 {/* Header / Profile */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
