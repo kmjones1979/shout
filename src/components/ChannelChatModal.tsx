@@ -435,6 +435,11 @@ export function ChannelChatModal({
                             <input
                                 ref={inputRef}
                                 type="text"
+                                inputMode="text"
+                                enterKeyHint="send"
+                                autoComplete="off"
+                                autoCorrect="on"
+                                autoCapitalize="sentences"
                                 value={inputValue}
                                 onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={handleKeyDown}

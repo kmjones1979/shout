@@ -857,11 +857,16 @@ export function GroupChatModal({
                                     </button>
                                     <input
                                         type="text"
+                                        inputMode="text"
+                                        enterKeyHint="send"
+                                        autoComplete="off"
+                                        autoCorrect="on"
+                                        autoCapitalize="sentences"
                                         value={newMessage}
                                         onChange={(e) =>
                                             setNewMessage(e.target.value)
                                         }
-                                        onKeyPress={handleKeyPress}
+                                        onKeyDown={handleKeyPress}
                                         placeholder="Type a message..."
                                         disabled={!isInitialized}
                                         className="flex-1 py-3 px-4 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-[#FB8D22]/50 focus:ring-2 focus:ring-[#FB8D22]/20 transition-all disabled:opacity-50"

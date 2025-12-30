@@ -211,6 +211,11 @@ export function AgentChatModal({ isOpen, onClose, agent, userAddress }: AgentCha
                                 <input
                                     ref={inputRef}
                                     type="text"
+                                    inputMode="text"
+                                    enterKeyHint="send"
+                                    autoComplete="off"
+                                    autoCorrect="on"
+                                    autoCapitalize="sentences"
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     onKeyDown={handleKeyDown}

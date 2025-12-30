@@ -1287,12 +1287,17 @@ export function ChatModal({
                                     <div className="flex-1 relative">
                                         <input
                                             type="text"
+                                            inputMode="text"
+                                            enterKeyHint="send"
+                                            autoComplete="off"
+                                            autoCorrect="on"
+                                            autoCapitalize="sentences"
                                             value={newMessage}
                                             onChange={(e) => {
                                                 setNewMessage(e.target.value);
                                                 handleTyping();
                                             }}
-                                            onKeyPress={handleKeyPress}
+                                            onKeyDown={handleKeyPress}
                                             onBlur={stopTyping}
                                             placeholder={
                                                 isInitialized
