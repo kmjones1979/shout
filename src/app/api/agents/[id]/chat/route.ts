@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { GoogleGenAI } from "@google/genai";
+import { google } from "googleapis";
+import { localTimeToUTC } from "@/lib/timezone";
+import { toZonedTime, format } from "date-fns-tz";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -618,53 +621,137 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                             .eq("wallet_address", agent.owner_address)
                             .eq("is_active", true);
                         
+                        // Get Google Calendar connection for busy time filtering
+                        const { data: calendarConnection } = await supabase
+                            .from("shout_calendar_connections")
+                            .select("*")
+                            .eq("wallet_address", agent.owner_address)
+                            .eq("provider", "google")
+                            .eq("is_active", true)
+                            .single();
+                        
                         const userTimezone = windows?.[0]?.timezone || "UTC";
                         
-                        // Generate available slots for the next 7 days
-                        const slots: { start: Date; end: Date }[] = [];
+                        // Generate potential slots for the next 7 days
+                        const potentialSlots: { start: Date; end: Date }[] = [];
                         const now = new Date();
                         const duration = ownerSettings.scheduling_free_duration_minutes || 30;
                         const advanceNoticeHours = 24;
+                        const bufferMinutes = 15;
                         const minStartTime = new Date(now.getTime() + advanceNoticeHours * 60 * 60 * 1000);
+                        const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
                         
                         for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
                             const checkDate = new Date(now);
                             checkDate.setDate(checkDate.getDate() + dayOffset);
+                            checkDate.setUTCHours(0, 0, 0, 0); // Reset to midnight UTC
                             const dayOfWeek = checkDate.getDay();
                             
                             const matchingWindows = (windows || []).filter(w => w.day_of_week === dayOfWeek);
                             
                             for (const window of matchingWindows) {
-                                // Parse start/end times (format: "HH:MM")
-                                const [startHour, startMin] = window.start_time.split(':').map(Number);
-                                const [endHour, endMin] = window.end_time.split(':').map(Number);
+                                // Get the timezone for this window
+                                const windowTimezone = window.timezone || userTimezone;
                                 
-                                const slotStart = new Date(checkDate);
-                                slotStart.setHours(startHour, startMin, 0, 0);
-                                
-                                const windowEnd = new Date(checkDate);
-                                windowEnd.setHours(endHour, endMin, 0, 0);
+                                // Convert local time in the window's timezone to UTC
+                                const slotStartUTC = localTimeToUTC(checkDate, window.start_time, windowTimezone);
+                                const slotEndUTC = localTimeToUTC(checkDate, window.end_time, windowTimezone);
                                 
                                 // Generate slots within this window
-                                let currentSlot = new Date(slotStart);
-                                while (currentSlot.getTime() + duration * 60 * 1000 <= windowEnd.getTime()) {
+                                let currentSlot = new Date(slotStartUTC);
+                                while (currentSlot.getTime() + duration * 60 * 1000 <= slotEndUTC.getTime()) {
                                     if (currentSlot >= minStartTime) {
-                                        slots.push({
+                                        potentialSlots.push({
                                             start: new Date(currentSlot),
                                             end: new Date(currentSlot.getTime() + duration * 60 * 1000)
                                         });
                                     }
-                                    currentSlot = new Date(currentSlot.getTime() + (duration + 15) * 60 * 1000); // duration + buffer
+                                    currentSlot = new Date(currentSlot.getTime() + (duration + bufferMinutes) * 60 * 1000);
                                 }
+                            }
+                        }
+                        
+                        // Filter out busy times from Google Calendar if connected
+                        let availableSlots = potentialSlots;
+                        if (calendarConnection && calendarConnection.access_token) {
+                            try {
+                                const oauth2Client = new google.auth.OAuth2(
+                                    process.env.GOOGLE_CLIENT_ID,
+                                    process.env.GOOGLE_CLIENT_SECRET
+                                );
+                                oauth2Client.setCredentials({
+                                    access_token: calendarConnection.access_token,
+                                    refresh_token: calendarConnection.refresh_token,
+                                });
+                                
+                                // Check if token needs refresh
+                                const tokenExpiry = calendarConnection.token_expires_at ? new Date(calendarConnection.token_expires_at) : null;
+                                const isExpired = tokenExpiry && tokenExpiry.getTime() < Date.now();
+                                
+                                if (isExpired && calendarConnection.refresh_token) {
+                                    console.log("[Chat] Refreshing expired Google token for", agent.owner_address);
+                                    try {
+                                        const { credentials } = await oauth2Client.refreshAccessToken();
+                                        await supabase
+                                            .from("shout_calendar_connections")
+                                            .update({
+                                                access_token: credentials.access_token,
+                                                token_expires_at: credentials.expiry_date 
+                                                    ? new Date(credentials.expiry_date).toISOString()
+                                                    : new Date(Date.now() + 3600 * 1000).toISOString(),
+                                            })
+                                            .eq("wallet_address", agent.owner_address)
+                                            .eq("provider", "google");
+                                        oauth2Client.setCredentials(credentials);
+                                    } catch (refreshError) {
+                                        console.error("[Chat] Token refresh failed:", refreshError);
+                                    }
+                                }
+                                
+                                const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+                                
+                                // Get busy times from Google Calendar
+                                const busyResponse = await calendar.freebusy.query({
+                                    requestBody: {
+                                        timeMin: now.toISOString(),
+                                        timeMax: endDate.toISOString(),
+                                        items: [{ id: calendarConnection.calendar_id || "primary" }],
+                                    },
+                                });
+                                
+                                const busyPeriods = busyResponse.data.calendars?.[calendarConnection.calendar_id || "primary"]?.busy || [];
+                                console.log("[Chat] Found", busyPeriods.length, "busy periods from Google Calendar");
+                                
+                                // Filter out slots that conflict with busy periods
+                                availableSlots = potentialSlots.filter((slot) => {
+                                    const slotStart = slot.start.getTime();
+                                    const slotEnd = slot.end.getTime();
+                                    
+                                    return !busyPeriods.some((busy) => {
+                                        const busyStart = new Date(busy.start!).getTime();
+                                        const busyEnd = new Date(busy.end!).getTime();
+                                        
+                                        return (
+                                            (slotStart >= busyStart && slotStart < busyEnd) ||
+                                            (slotEnd > busyStart && slotEnd <= busyEnd) ||
+                                            (slotStart <= busyStart && slotEnd >= busyEnd)
+                                        );
+                                    });
+                                });
+                                
+                                console.log("[Chat] Filtered from", potentialSlots.length, "to", availableSlots.length, "available slots");
+                            } catch (calendarError) {
+                                console.error("[Chat] Google Calendar error:", calendarError);
+                                // Continue with all potential slots if calendar check fails
                             }
                         }
                         
                         // Group slots by date for cleaner presentation
                         const slotsByDate: Record<string, string[]> = {};
-                        for (const slot of slots.slice(0, 30)) {
-                            const date = slot.start;
-                            const dateKey = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: userTimezone });
-                            const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: userTimezone });
+                        for (const slot of availableSlots.slice(0, 30)) {
+                            const zonedDate = toZonedTime(slot.start, userTimezone);
+                            const dateKey = format(zonedDate, "EEEE, MMMM d", { timeZone: userTimezone });
+                            const timeStr = format(zonedDate, "h:mm a", { timeZone: userTimezone });
                             
                             if (!slotsByDate[dateKey]) {
                                 slotsByDate[dateKey] = [];
@@ -672,17 +759,12 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                             slotsByDate[dateKey].push(timeStr);
                         }
                         
-                        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.spritz.chat';
-                        const scheduleLink = ownerSettings.scheduling_slug 
-                            ? `${appUrl}/schedule/${ownerSettings.scheduling_slug}`
-                            : `${appUrl}/schedule/${agent.owner_address}`;
-                        
                         const hasSlots = Object.keys(slotsByDate).length > 0;
                         
-                        // Store scheduling data to return with response
+                        // Store scheduling data to return with response for in-chat booking UI
                         schedulingResponseData = {
                             ownerAddress: agent.owner_address,
-                            slots: slots.slice(0, 50).map(s => ({
+                            slots: availableSlots.slice(0, 50).map(s => ({
                                 start: s.start.toISOString(),
                                 end: s.end.toISOString(),
                             })),
@@ -693,32 +775,30 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                             paidDuration: ownerSettings.scheduling_paid_duration_minutes || 30,
                             priceCents: ownerSettings.scheduling_price_cents || 0,
                             timezone: userTimezone,
-                            scheduleLink,
                         };
                         
                         schedulingContext = `
 ## SCHEDULING INFORMATION
 
-You can help users schedule meetings with your creator.${hasSlots ? ` Here's the current availability (times in ${userTimezone}):
+You can help users schedule meetings with your creator.${hasSlots ? ` Here's the REAL-TIME availability (times in ${userTimezone}, already checked against calendar):
 
 ${Object.entries(slotsByDate).map(([date, times]) => `**${date}:** ${times.join(', ')}`).join('\n')}` : `
 
-(No specific availability windows configured yet - direct them to the booking link to see real-time availability)`}
+(No available slots found in the next 7 days)`}
 
 ${ownerSettings.scheduling_free_enabled ? `- **Free calls** available (${ownerSettings.scheduling_free_duration_minutes || 15} minutes)` : ''}
 ${ownerSettings.scheduling_paid_enabled ? `- **Paid sessions** available (${ownerSettings.scheduling_paid_duration_minutes || 30} minutes) - $${((ownerSettings.scheduling_price_cents || 0) / 100).toFixed(2)} USD` : ''}
 
-**Booking Link:** ${scheduleLink}
-
+IMPORTANT: The user can book DIRECTLY in this chat. A booking card will appear below your message with the available times.
 When helping users schedule:
-1. Present the available times in a friendly way
+1. Present the available times clearly
 2. Ask what type of meeting they'd like (free or paid, if both available)
-3. Once they choose a time, direct them to the booking link above
-4. If they need more details, explain they can provide their email and any notes when booking
+3. Tell them to select a time from the interactive booking card that will appear
+4. The booking card handles collecting their email and completing the reservation
 
-DO NOT pretend you can directly book the meeting - always direct them to the booking link.
+DO NOT direct users to an external URL - everything is handled in this chat interface.
 `;
-                        console.log("[Chat] Added scheduling context with", Object.keys(slotsByDate).length, "days of availability,", slots.length, "total slots");
+                        console.log("[Chat] Added scheduling context with", Object.keys(slotsByDate).length, "days,", availableSlots.length, "available slots (checked Google Calendar)");
                     } else {
                         schedulingContext = `
 ## SCHEDULING NOTE
@@ -735,9 +815,10 @@ My creator hasn't enabled their public scheduling page yet. Please ask them dire
             systemInstructions += `\n\n## Scheduling Capability
 You can help users schedule meetings with your creator. When users ask about scheduling, meeting times, or availability:
 - Be helpful and proactive
-- If you have availability data, present the times clearly
-- Always direct users to the booking link to complete their reservation
+- Present the available times clearly when you have them
+- Tell users they can select a time from the interactive booking card that appears below your message
 - Ask clarifying questions if needed (preferred time of day, meeting type, etc.)
+- DO NOT direct users to external URLs - booking happens in this chat
 `;
             
             if (schedulingContext) {
