@@ -92,45 +92,42 @@ export async function POST(
             return NextResponse.json({ error: "Agent not found" }, { status: 404 });
         }
 
-        // Verify agent is x402 enabled and public
-        if (!agent.x402_enabled) {
-            return NextResponse.json({ 
-                error: "This agent is not available for external API access" 
-            }, { status: 403 });
-        }
-
+        // Verify agent is public
         if (agent.visibility !== "public") {
             return NextResponse.json({ 
-                error: "Only public agents can be accessed via API" 
+                error: "Only public agents can be accessed via this API" 
             }, { status: 403 });
         }
 
-        // Verify x402 payment
-        const x402Config: X402Config = {
-            priceUSD: `$${(agent.x402_price_cents / 100).toFixed(2)}`,
-            network: (agent.x402_network || "base") as "base" | "base-sepolia",
-            payToAddress: agent.x402_wallet_address || agent.owner_address,
-            description: `Chat with ${agent.name} AI agent`,
-        };
-
-        const paymentResponse = await requireX402Payment(request, x402Config);
-        if (paymentResponse) {
-            return paymentResponse; // Return 402 if payment required/invalid
-        }
-
-        // Extract payer info from payment header
+        // Initialize payment tracking
         let payerAddress = "anonymous";
         let paymentAmountCents = 0;
         let paymentTxHash: string | null = null;
-        
-        const paymentHeader = request.headers.get("X-Payment");
-        if (paymentHeader) {
-            try {
-                const payment = JSON.parse(paymentHeader);
-                payerAddress = payment.from || "anonymous";
-                paymentAmountCents = payment.amount ? parseInt(payment.amount) / 10000 : agent.x402_price_cents;
-            } catch {
-                // Payment header parsing failed, use defaults
+
+        // If x402 is enabled, verify payment
+        if (agent.x402_enabled) {
+            const x402Config: X402Config = {
+                priceUSD: `$${(agent.x402_price_cents / 100).toFixed(2)}`,
+                network: (agent.x402_network || "base") as "base" | "base-sepolia",
+                payToAddress: agent.x402_wallet_address || agent.owner_address,
+                description: `Chat with ${agent.name} AI agent`,
+            };
+
+            const paymentResponse = await requireX402Payment(request, x402Config);
+            if (paymentResponse) {
+                return paymentResponse; // Return 402 if payment required/invalid
+            }
+
+            // Extract payer info from payment header
+            const paymentHeader = request.headers.get("X-Payment");
+            if (paymentHeader) {
+                try {
+                    const payment = JSON.parse(paymentHeader);
+                    payerAddress = payment.from || "anonymous";
+                    paymentAmountCents = payment.amount ? parseInt(payment.amount) / 10000 : agent.x402_price_cents;
+                } catch {
+                    // Payment header parsing failed, use defaults
+                }
             }
         }
 
@@ -278,23 +275,52 @@ export async function GET(
                 web_search_enabled,
                 use_knowledge_base,
                 message_count,
+                tags,
                 created_at
             `)
             .eq("id", id)
-            .eq("x402_enabled", true)
             .eq("visibility", "public")
             .single();
 
         if (error || !agent) {
-            return NextResponse.json({ error: "Agent not found or not available" }, { status: 404 });
+            return NextResponse.json({ error: "Agent not found or not public" }, { status: 404 });
         }
 
-        return NextResponse.json({
+        // Build response - include pricing only if x402 is enabled
+        const response: {
+            agent: {
+                id: string;
+                name: string;
+                personality: string | null;
+                emoji: string;
+                tags: string[] | null;
+                features: {
+                    webSearch: boolean;
+                    knowledgeBase: boolean;
+                };
+                stats: {
+                    totalMessages: number;
+                };
+                createdAt: string;
+            };
+            pricing: {
+                enabled: boolean;
+                pricePerMessage?: string;
+                priceCents?: number;
+                network?: string;
+                currency?: string;
+            };
+            endpoints: {
+                chat: string;
+                info: string;
+            };
+        } = {
             agent: {
                 id: agent.id,
                 name: agent.name,
                 personality: agent.personality,
                 emoji: agent.avatar_emoji,
+                tags: agent.tags,
                 features: {
                     webSearch: agent.web_search_enabled,
                     knowledgeBase: agent.use_knowledge_base,
@@ -305,16 +331,26 @@ export async function GET(
                 createdAt: agent.created_at,
             },
             pricing: {
-                pricePerMessage: `$${(agent.x402_price_cents / 100).toFixed(2)}`,
-                priceCents: agent.x402_price_cents,
-                network: agent.x402_network,
-                currency: "USDC",
+                enabled: agent.x402_enabled || false,
             },
             endpoints: {
                 chat: `/api/public/agents/${agent.id}/chat`,
                 info: `/api/public/agents/${agent.id}`,
             },
-        });
+        };
+
+        // Add pricing details if x402 is enabled
+        if (agent.x402_enabled) {
+            response.pricing = {
+                ...response.pricing,
+                pricePerMessage: `$${(agent.x402_price_cents / 100).toFixed(2)}`,
+                priceCents: agent.x402_price_cents,
+                network: agent.x402_network,
+                currency: "USDC",
+            };
+        }
+
+        return NextResponse.json(response);
 
     } catch (error) {
         console.error("[Public Agent Info] Error:", error);

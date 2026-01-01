@@ -45,11 +45,10 @@ export default function PublicAgentPage() {
                 if (res.ok) {
                     const data = await res.json();
                     setAgent(data);
-                    if (data.x402_enabled) {
-                        setPaymentRequired(true);
-                    }
+                    // Only require payment if x402 is explicitly enabled
+                    setPaymentRequired(data.x402_enabled === true);
                 } else if (res.status === 404) {
-                    setError("Agent not found");
+                    setError("Agent not found or not public");
                 } else if (res.status === 403) {
                     setError("This agent is not public");
                 } else {
@@ -88,14 +87,17 @@ export default function PublicAgentPage() {
             if (res.status === 402) {
                 // Payment required
                 const data = await res.json();
+                const price = data.price || agent.x402_price_cents || 0;
                 setMessages(prev => [...prev, { 
                     role: "assistant", 
-                    content: `💰 **Payment Required**\n\nThis agent requires a payment of **$${(data.price / 100).toFixed(2)}** per message.\n\nTo use this agent programmatically with x402 payments, use the embed code from the agent owner.`
+                    content: `💰 **Payment Required**\n\nThis agent requires a payment of **$${(price / 100).toFixed(2)}** per message.\n\nTo use this agent programmatically with x402 payments, use the embed code from the agent owner.`
                 }]);
                 setPaymentRequired(true);
             } else if (res.ok) {
                 const data = await res.json();
-                setMessages(prev => [...prev, { role: "assistant", content: data.response }]);
+                // Handle both 'message' and 'response' keys for compatibility
+                const responseText = data.message || data.response || "No response";
+                setMessages(prev => [...prev, { role: "assistant", content: responseText }]);
             } else {
                 const data = await res.json();
                 setMessages(prev => [...prev, { 
@@ -131,7 +133,7 @@ export default function PublicAgentPage() {
                     <div className="text-6xl mb-4">😕</div>
                     <h1 className="text-2xl font-bold text-white mb-2">Agent Not Available</h1>
                     <p className="text-zinc-400">{error || "This agent could not be loaded"}</p>
-                    <a href="/" className="mt-6 inline-block px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
+                    <a href="/" className="mt-6 inline-block px-4 py-2 bg-[#FF5500] text-white rounded-lg hover:bg-[#E04D00] transition-colors">
                         Go to Spritz
                     </a>
                 </div>
@@ -144,14 +146,18 @@ export default function PublicAgentPage() {
             {/* Header */}
             <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-10">
                 <div className="max-w-3xl mx-auto px-4 py-4">
-                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4">
                         <div className="text-4xl">{agent.avatar_emoji}</div>
                         <div className="flex-1">
                             <h1 className="text-xl font-bold text-white flex items-center gap-2">
                                 {agent.name}
-                                {agent.x402_enabled && (
+                                {agent.x402_enabled ? (
                                     <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">
                                         💰 ${(agent.x402_price_cents / 100).toFixed(2)}/msg
+                                    </span>
+                                ) : (
+                                    <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">
+                                        ✨ Free
                                     </span>
                                 )}
                             </h1>
@@ -190,11 +196,18 @@ export default function PublicAgentPage() {
                             <p className="text-zinc-400 mb-6 max-w-md mx-auto">
                                 {agent.personality || "Ask me anything!"}
                             </p>
-                            {agent.x402_enabled && (
+                            {agent.x402_enabled ? (
                                 <div className="inline-block bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 text-sm">
                                     <p className="text-yellow-400 font-medium">💰 This agent uses x402 payments</p>
                                     <p className="text-zinc-400 text-xs mt-1">
                                         ${(agent.x402_price_cents / 100).toFixed(2)} per message on {agent.x402_network}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="inline-block bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-3 text-sm">
+                                    <p className="text-emerald-400 font-medium">✨ Free to chat</p>
+                                    <p className="text-zinc-400 text-xs mt-1">
+                                        This public agent is free to use
                                     </p>
                                 </div>
                             )}
@@ -212,7 +225,7 @@ export default function PublicAgentPage() {
                                     >
                                         <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                                             msg.role === "user" 
-                                                ? "bg-purple-500 text-white" 
+                                                ? "bg-[#FF5500] text-white" 
                                                 : "bg-zinc-800 text-zinc-100"
                                         }`}>
                                             {msg.role === "assistant" && (
@@ -259,23 +272,27 @@ export default function PublicAgentPage() {
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder={paymentRequired && agent.x402_enabled 
+                            placeholder={agent.x402_enabled 
                                 ? `Chat (${agent.x402_price_cents}¢/msg)...` 
                                 : "Type a message..."}
                             disabled={sending}
-                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
+                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-[#FF5500] disabled:opacity-50"
                         />
                         <button
                             type="submit"
                             disabled={!input.trim() || sending}
-                            className="px-6 py-3 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+                            className="px-6 py-3 bg-[#FF5500] hover:bg-[#E04D00] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
                         >
                             {sending ? "..." : "Send"}
                         </button>
                     </form>
-                    {agent.x402_enabled && (
+                    {agent.x402_enabled ? (
                         <p className="text-xs text-zinc-500 text-center mt-2">
                             This agent requires x402 payment. Use the SDK for programmatic access with payments.
+                        </p>
+                    ) : (
+                        <p className="text-xs text-zinc-500 text-center mt-2">
+                            Powered by <a href="/" className="text-[#FF5500] hover:underline">Spritz</a> • Public AI Agent
                         </p>
                     )}
                 </div>
