@@ -1664,40 +1664,7 @@ function DashboardContent({
                                                     maxHeight: 'min(calc(100dvh - 140px), 520px)',
                                                 }}
                                             >
-                                                {/* 1. Status */}
-                                                <button
-                                                    onClick={() => {
-                                                        setIsProfileMenuOpen(
-                                                            false
-                                                        );
-                                                        setIsStatusModalOpen(
-                                                            true
-                                                        );
-                                                    }}
-                                                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left"
-                                                >
-                                                    <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-lg">
-                                                        {
-                                                            userSettings.statusEmoji
-                                                        }
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-white text-sm font-medium">
-                                                            Status
-                                                        </p>
-                                                        <p className="text-zinc-500 text-xs truncate">
-                                                            {userSettings.statusText ||
-                                                                "Set your status"}
-                                                        </p>
-                                                    </div>
-                                                    {userSettings.isDnd && (
-                                                        <span className="text-xs bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">
-                                                            DND
-                                                        </span>
-                                                    )}
-                                                </button>
-
-                                                {/* 2. My QR Code */}
+                                                {/* 1. My QR Code */}
                                                 <button
                                                     onClick={() => {
                                                         setIsProfileMenuOpen(
@@ -1707,7 +1674,7 @@ function DashboardContent({
                                                             true
                                                         );
                                                     }}
-                                                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left border-t border-zinc-800"
+                                                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left"
                                                 >
                                                     <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
                                                         <svg
@@ -1734,7 +1701,7 @@ function DashboardContent({
                                                     </div>
                                                 </button>
 
-                                                {/* 3. Username */}
+                                                {/* 2. Username */}
                                                 <button
                                                     onClick={() => {
                                                         setIsProfileMenuOpen(
@@ -1804,7 +1771,7 @@ function DashboardContent({
                                                     )}
                                                 </button>
 
-                                                {/* 4. Email */}
+                                                {/* 3. Email */}
                                                 <button
                                                     onClick={() => {
                                                         setIsProfileMenuOpen(
@@ -1874,7 +1841,7 @@ function DashboardContent({
                                                     )}
                                                 </button>
 
-                                                {/* 5. Phone */}
+                                                {/* 4. Phone */}
                                                 <button
                                                     onClick={() => {
                                                         setIsProfileMenuOpen(
@@ -1944,7 +1911,7 @@ function DashboardContent({
                                                     )}
                                                 </button>
 
-                                                {/* 6. Socials */}
+                                                {/* 5. Socials */}
                                                 <button
                                                     onClick={() => {
                                                         setIsProfileMenuOpen(
@@ -2014,7 +1981,7 @@ function DashboardContent({
                                                     )}
                                                 </button>
 
-                                                {/* 7. ENS/SNS Name Service */}
+                                                {/* 6. ENS/SNS Name Service */}
                                                 {isSolanaUser ? (
                                                     // Solana users - show SNS link
                                                     <a
@@ -2139,7 +2106,7 @@ function DashboardContent({
                                                     </a>
                                                 )}
 
-                                                {/* 8. Points */}
+                                                {/* 7. Points */}
                                                 {(() => {
                                                     const hasNameService =
                                                         userENS.ensName ||
@@ -2212,85 +2179,7 @@ function DashboardContent({
                                                     );
                                                 })()}
 
-                                                {/* 9. Invites */}
-                                                <button
-                                                    onClick={() => {
-                                                        setIsProfileMenuOpen(
-                                                            false
-                                                        );
-                                                        setIsInvitesModalOpen(
-                                                            true
-                                                        );
-                                                    }}
-                                                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-zinc-800 transition-colors text-left border-t border-zinc-800"
-                                                >
-                                                    <div
-                                                        className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                                            allInvitesUsed
-                                                                ? "bg-emerald-500/20"
-                                                                : "bg-[#FB8D22]/20"
-                                                        }`}
-                                                    >
-                                                        <svg
-                                                            className={`w-4 h-4 ${
-                                                                allInvitesUsed
-                                                                    ? "text-emerald-400"
-                                                                    : "text-[#FFBBA7]"
-                                                            }`}
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                strokeWidth={2}
-                                                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-                                                            />
-                                                        </svg>
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-white text-sm font-medium">
-                                                            Invites
-                                                        </p>
-                                                        <p
-                                                            className={`text-xs ${
-                                                                allInvitesUsed
-                                                                    ? "text-emerald-400"
-                                                                    : "text-[#FFBBA7]"
-                                                            }`}
-                                                        >
-                                                            {allInvitesUsed
-                                                                ? `All ${usedInvites} codes redeemed!`
-                                                                : `${availableInvites} codes available`}
-                                                        </p>
-                                                    </div>
-                                                    {allInvitesUsed ? (
-                                                        <svg
-                                                            className="w-4 h-4 text-emerald-400"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                strokeWidth={2}
-                                                                d="M5 13l4 4L19 7"
-                                                            />
-                                                        </svg>
-                                                    ) : (
-                                                        <div className="bg-[#FB8D22]/20 px-2 py-0.5 rounded-full">
-                                                            <span className="text-[#FFBBA7] text-xs font-medium">
-                                                                {
-                                                                    availableInvites
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </button>
-
-                                                {/* 10. Settings */}
+                                                {/* 8. Settings */}
                                                 <button
                                                     onClick={() => {
                                                         setIsProfileMenuOpen(
@@ -3583,6 +3472,10 @@ function DashboardContent({
                 currentSettings={userSettings}
                 onSave={setStatus}
                 onToggleDnd={toggleDnd}
+                onBack={() => {
+                    setIsStatusModalOpen(false);
+                    setIsSettingsModalOpen(true);
+                }}
             />
 
             {/* Settings Modal */}
@@ -3601,6 +3494,10 @@ function DashboardContent({
                 onEnablePush={subscribeToPush}
                 onDisablePush={unsubscribeFromPush}
                 userAddress={userAddress}
+                onOpenStatusModal={() => setIsStatusModalOpen(true)}
+                availableInvites={availableInvites}
+                usedInvites={usedInvites}
+                onOpenInvitesModal={() => setIsInvitesModalOpen(true)}
             />
 
             {/* First-time Push Notification Prompt */}
@@ -3648,6 +3545,10 @@ function DashboardContent({
                 isOpen={isInvitesModalOpen}
                 onClose={() => setIsInvitesModalOpen(false)}
                 walletAddress={userAddress}
+                onBack={() => {
+                    setIsInvitesModalOpen(false);
+                    setIsSettingsModalOpen(true);
+                }}
             />
 
             {/* Alpha Chat Modal */}

@@ -8,9 +8,10 @@ type Props = {
     isOpen: boolean;
     onClose: () => void;
     walletAddress: string;
+    onBack?: () => void;
 };
 
-export function InvitesModal({ isOpen, onClose, walletAddress }: Props) {
+export function InvitesModal({ isOpen, onClose, walletAddress, onBack }: Props) {
     const {
         invites,
         used,
@@ -54,11 +55,23 @@ export function InvitesModal({ isOpen, onClose, walletAddress }: Props) {
                     className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-800 max-h-[80vh] overflow-y-auto"
                 >
                     <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h2 className="text-xl font-bold text-white">Your Invites</h2>
-                            <p className="text-zinc-500 text-sm mt-1">
-                                Share with friends & earn 100 points each
-                            </p>
+                        <div className="flex items-center gap-3">
+                            {onBack && (
+                                <button
+                                    onClick={onBack}
+                                    className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                            )}
+                            <div>
+                                <h2 className="text-xl font-bold text-white">Your Invites</h2>
+                                <p className="text-zinc-500 text-sm mt-1">
+                                    Share with friends & earn 100 points each
+                                </p>
+                            </div>
                         </div>
                         <button
                             onClick={onClose}

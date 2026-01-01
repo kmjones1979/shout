@@ -34,6 +34,12 @@ type SettingsModalProps = {
     onDisablePush: () => Promise<boolean>;
     // Calendar props
     userAddress: string | null;
+    // Status props
+    onOpenStatusModal: () => void;
+    // Invites props
+    availableInvites: number;
+    usedInvites: number;
+    onOpenInvitesModal: () => void;
 };
 
 export function SettingsModal({
@@ -51,6 +57,10 @@ export function SettingsModal({
     onEnablePush,
     onDisablePush,
     userAddress,
+    onOpenStatusModal,
+    availableInvites,
+    usedInvites,
+    onOpenInvitesModal,
 }: SettingsModalProps) {
     const handlePushToggle = async () => {
         // Prevent double-clicks by checking loading state
@@ -240,6 +250,77 @@ export function SettingsModal({
 
                             {/* Settings List - Scrollable */}
                             <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 space-y-2 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                                {/* Status & Invites Section */}
+                                <div className="mb-4">
+                                    <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 px-1">
+                                        Profile
+                                    </h3>
+
+                                    {/* Status */}
+                                    <button
+                                        onClick={() => {
+                                            onClose();
+                                            onOpenStatusModal();
+                                        }}
+                                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-zinc-700/50 flex items-center justify-center text-lg">
+                                                {settings.statusEmoji}
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-white font-medium">Status</p>
+                                                <p className="text-zinc-500 text-xs truncate max-w-[150px]">
+                                                    {settings.statusText || "Set your status"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {settings.isDnd && (
+                                                <span className="text-xs bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">
+                                                    DND
+                                                </span>
+                                            )}
+                                            <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </div>
+                                    </button>
+
+                                    {/* Invites */}
+                                    <button
+                                        onClick={() => {
+                                            onClose();
+                                            onOpenInvitesModal();
+                                        }}
+                                        className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors mt-2"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-[#FF5500]/20 flex items-center justify-center">
+                                                <svg className="w-4 h-4 text-[#FFBBA7]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                                </svg>
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-white font-medium">Invites</p>
+                                                <p className="text-zinc-500 text-xs">
+                                                    Earn 100 pts per referral
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {availableInvites > 0 && (
+                                                <span className="text-xs bg-[#FF5500]/20 text-[#FFBBA7] px-2 py-0.5 rounded-full font-medium">
+                                                    {availableInvites}
+                                                </span>
+                                            )}
+                                            <svg className="w-5 h-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </div>
+                                    </button>
+                                </div>
+
                                 {/* Censorship Resistance Section */}
                                 <div className="mb-4">
                                     <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 px-1">

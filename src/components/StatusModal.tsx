@@ -10,6 +10,7 @@ type StatusModalProps = {
     currentSettings: UserSettings;
     onSave: (emoji: string, text: string) => Promise<boolean>;
     onToggleDnd: () => void;
+    onBack?: () => void;
 };
 
 // Emoji categories for picker
@@ -94,6 +95,7 @@ export function StatusModal({
     currentSettings,
     onSave,
     onToggleDnd,
+    onBack,
 }: StatusModalProps) {
     const [selectedEmoji, setSelectedEmoji] = useState(
         currentSettings.statusEmoji
@@ -160,9 +162,31 @@ export function StatusModal({
                         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
                             {/* Header */}
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-bold text-white">
-                                    Set Your Status
-                                </h2>
+                                <div className="flex items-center gap-3">
+                                    {onBack && (
+                                        <button
+                                            onClick={onBack}
+                                            className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                                        >
+                                            <svg
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M15 19l-7-7 7-7"
+                                                />
+                                            </svg>
+                                        </button>
+                                    )}
+                                    <h2 className="text-xl font-bold text-white">
+                                        Set Your Status
+                                    </h2>
+                                </div>
                                 <button
                                     onClick={onClose}
                                     className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
