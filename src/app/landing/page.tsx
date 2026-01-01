@@ -330,7 +330,7 @@ export default function LandingPage() {
                         </Link>
                     </div>
                     <p className="text-zinc-400 text-sm">
-                        © 2026 Spritz. Open source under MIT license.
+                        © 2026 Spritz. Licensed under PolyForm Noncommercial.
                     </p>
                 </div>
             </footer>
