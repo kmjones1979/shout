@@ -673,8 +673,16 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                             }
                         }
                         
-                        // Filter out busy times from Google Calendar if connected
-                        let availableSlots = potentialSlots;
+                        // IMPORTANT: Data Segregation for Google API Compliance
+                        // - slotsForAI: Only from database (user's configured availability) - sent to AI
+                        // - slotsForBookingCard: Filtered by Google Calendar - sent to frontend only, NOT to AI
+                        // This ensures Google Calendar data is NEVER sent to the LLM
+                        
+                        // For AI context: Use only database-configured slots (NO Google Calendar data)
+                        const slotsForAI = potentialSlots;
+                        
+                        // For booking card: Filter by Google Calendar if connected
+                        let slotsForBookingCard = potentialSlots;
                         if (calendarConnection && calendarConnection.access_token) {
                             try {
                                 const oauth2Client = new google.auth.OAuth2(
@@ -712,7 +720,7 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                                 
                                 const calendar = google.calendar({ version: "v3", auth: oauth2Client });
                                 
-                                // Get busy times from Google Calendar
+                                // Get busy times from Google Calendar (for booking card only, not AI)
                                 const busyResponse = await calendar.freebusy.query({
                                     requestBody: {
                                         timeMin: now.toISOString(),
@@ -722,10 +730,10 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                                 });
                                 
                                 const busyPeriods = busyResponse.data.calendars?.[calendarConnection.calendar_id || "primary"]?.busy || [];
-                                console.log("[Chat] Found", busyPeriods.length, "busy periods from Google Calendar");
+                                console.log("[Chat] Found", busyPeriods.length, "busy periods from Google Calendar (for booking card only)");
                                 
-                                // Filter out slots that conflict with busy periods
-                                availableSlots = potentialSlots.filter((slot) => {
+                                // Filter out slots that conflict with busy periods (for booking card only)
+                                slotsForBookingCard = potentialSlots.filter((slot) => {
                                     const slotStart = slot.start.getTime();
                                     const slotEnd = slot.end.getTime();
                                     
@@ -741,36 +749,49 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                                     });
                                 });
                                 
-                                console.log("[Chat] Filtered from", potentialSlots.length, "to", availableSlots.length, "available slots");
+                                console.log("[Chat] Booking card slots filtered from", potentialSlots.length, "to", slotsForBookingCard.length);
                             } catch (calendarError) {
                                 console.error("[Chat] Google Calendar error:", calendarError);
                                 // Continue with all potential slots if calendar check fails
                             }
                         }
                         
-                        // Group slots by date for cleaner presentation
-                        const slotsByDate: Record<string, string[]> = {};
-                        for (const slot of availableSlots.slice(0, 30)) {
+                        // Group slots for AI context (database slots only - NO Google Calendar data)
+                        const slotsByDateForAI: Record<string, string[]> = {};
+                        for (const slot of slotsForAI.slice(0, 30)) {
                             const zonedDate = toZonedTime(slot.start, userTimezone);
                             const dateKey = format(zonedDate, "EEEE, MMMM d", { timeZone: userTimezone });
                             const timeStr = format(zonedDate, "h:mm a", { timeZone: userTimezone });
                             
-                            if (!slotsByDate[dateKey]) {
-                                slotsByDate[dateKey] = [];
+                            if (!slotsByDateForAI[dateKey]) {
+                                slotsByDateForAI[dateKey] = [];
                             }
-                            slotsByDate[dateKey].push(timeStr);
+                            slotsByDateForAI[dateKey].push(timeStr);
                         }
                         
-                        const hasSlots = Object.keys(slotsByDate).length > 0;
+                        // Group slots for booking card (may include Google Calendar filtering)
+                        const slotsByDateForCard: Record<string, string[]> = {};
+                        for (const slot of slotsForBookingCard.slice(0, 30)) {
+                            const zonedDate = toZonedTime(slot.start, userTimezone);
+                            const dateKey = format(zonedDate, "EEEE, MMMM d", { timeZone: userTimezone });
+                            const timeStr = format(zonedDate, "h:mm a", { timeZone: userTimezone });
+                            
+                            if (!slotsByDateForCard[dateKey]) {
+                                slotsByDateForCard[dateKey] = [];
+                            }
+                            slotsByDateForCard[dateKey].push(timeStr);
+                        }
                         
-                        // Store scheduling data to return with response for in-chat booking UI
+                        const hasSlots = Object.keys(slotsByDateForAI).length > 0;
+                        
+                        // Store scheduling data for booking card UI (uses Google Calendar filtered slots)
                         schedulingResponseData = {
                             ownerAddress: agent.owner_address,
-                            slots: availableSlots.slice(0, 50).map(s => ({
+                            slots: slotsForBookingCard.slice(0, 50).map(s => ({
                                 start: s.start.toISOString(),
                                 end: s.end.toISOString(),
                             })),
-                            slotsByDate,
+                            slotsByDate: slotsByDateForCard,
                             freeEnabled: ownerSettings.scheduling_free_enabled ?? true,
                             paidEnabled: ownerSettings.scheduling_paid_enabled ?? false,
                             freeDuration: ownerSettings.scheduling_free_duration_minutes || 15,
@@ -779,28 +800,31 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                             timezone: userTimezone,
                         };
                         
+                        // AI context uses ONLY database-configured availability (NO Google Calendar data)
                         schedulingContext = `
 ## SCHEDULING INFORMATION
 
-You can help users schedule meetings with your creator.${hasSlots ? ` Here's the REAL-TIME availability (times in ${userTimezone}, already checked against calendar):
+You can help users schedule meetings with your creator.${hasSlots ? ` Here are the general availability windows (times in ${userTimezone}):
 
-${Object.entries(slotsByDate).map(([date, times]) => `**${date}:** ${times.join(', ')}`).join('\n')}` : `
+${Object.entries(slotsByDateForAI).map(([date, times]) => `**${date}:** ${times.join(', ')}`).join('\n')}
 
-(No available slots found in the next 7 days)`}
+Note: The interactive booking card below will show the most accurate real-time availability.` : `
+
+(No availability windows configured for the next 7 days)`}
 
 ${ownerSettings.scheduling_free_enabled ? `- **Free calls** available (${ownerSettings.scheduling_free_duration_minutes || 15} minutes)` : ''}
 ${ownerSettings.scheduling_paid_enabled ? `- **Paid sessions** available (${ownerSettings.scheduling_paid_duration_minutes || 30} minutes) - $${((ownerSettings.scheduling_price_cents || 0) / 100).toFixed(2)} USD` : ''}
 
-IMPORTANT: The user can book DIRECTLY in this chat. A booking card will appear below your message with the available times.
+IMPORTANT: The user can book DIRECTLY in this chat. A booking card will appear below your message with the accurate available times.
 When helping users schedule:
-1. Present the available times clearly
+1. Present the general availability times above
 2. Ask what type of meeting they'd like (free or paid, if both available)
 3. Tell them to select a time from the interactive booking card that will appear
 4. The booking card handles collecting their email and completing the reservation
 
 DO NOT direct users to an external URL - everything is handled in this chat interface.
 `;
-                        console.log("[Chat] Added scheduling context with", Object.keys(slotsByDate).length, "days,", availableSlots.length, "available slots (checked Google Calendar)");
+                        console.log("[Chat] Added scheduling context with", Object.keys(slotsByDateForAI).length, "days (database only, no Google Calendar data sent to AI)");
                     } else {
                         schedulingContext = `
 ## SCHEDULING NOTE
