@@ -150,86 +150,170 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const roomEvents = client.room as any;
 
-            // Handle new peer joining
-            roomEvents.on("new-peer-joined", (data: { peerId: string; metadata?: { displayName?: string } }) => {
-                console.log("[Room] New peer joined:", data);
-                const peerName = data.metadata?.displayName || `Participant ${data.peerId.slice(0, 6)}`;
+            // Helper to extract track from various event data structures
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const extractTrack = (data: any, label: string): MediaStreamTrack | null => {
+                // Method 1: Direct track property
+                if (data?.track instanceof MediaStreamTrack) {
+                    return data.track;
+                }
+                // Method 2: Consumer track property
+                if (data?.consumer?.track instanceof MediaStreamTrack) {
+                    return data.consumer.track;
+                }
+                // Method 3: MediaStream in event
+                if (data?.stream instanceof MediaStream) {
+                    const tracks = label === "audio" 
+                        ? data.stream.getAudioTracks() 
+                        : data.stream.getVideoTracks();
+                    if (tracks.length > 0) return tracks[0];
+                }
+                return null;
+            };
+
+            // Handle new peer joining (try both event names)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const handlePeerJoined = (data: any) => {
+                console.log("[Room] New peer joined - raw data:", data);
+                
+                // Handle both { peer: {...} } and direct peer object structures
+                const peerData = data?.peer || data;
+                const peerId = peerData?.peerId || peerData?.id;
+                const metadata = peerData?.metadata || {};
+                
+                if (!peerId) {
+                    console.warn("[Room] Could not extract peerId from peer joined event");
+                    return;
+                }
+                
+                const peerName = metadata?.displayName || `Participant ${peerId.slice(0, 6)}`;
+                console.log("[Room] Adding peer:", peerId, "Name:", peerName);
+                
                 setRemotePeers(prev => {
                     const updated = new Map(prev);
-                    updated.set(data.peerId, {
-                        peerId: data.peerId,
+                    updated.set(peerId, {
+                        peerId,
                         displayName: peerName,
                         audioTrack: null,
                         videoTrack: null,
                     });
                     return updated;
                 });
-            });
+            };
+            
+            // Try both event names (Huddle01 SDK uses different names in different versions)
+            roomEvents.on("new-peer-joined", handlePeerJoined);
+            roomEvents.on("peer-joined", handlePeerJoined);
 
             // Handle peer leaving
-            roomEvents.on("peer-left", (data: { peerId: string }) => {
-                console.log("[Room] Peer left:", data);
-                setRemotePeers(prev => {
-                    const updated = new Map(prev);
-                    updated.delete(data.peerId);
-                    return updated;
-                });
-                // Clean up refs
-                remoteVideoRefs.current.delete(data.peerId);
-                remoteAudioRefs.current.delete(data.peerId);
-            });
-
-            // Handle remote stream becoming available
-            roomEvents.on("stream-added", (data: { peerId: string; label: string; track: MediaStreamTrack }) => {
-                console.log("[Room] Remote stream added:", data.peerId, data.label);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const handlePeerLeft = (data: any) => {
+                console.log("[Room] Peer left - raw data:", data);
+                const peerData = data?.peer || data;
+                const peerId = peerData?.peerId || peerData?.id || data?.peerId;
+                
+                if (!peerId) {
+                    console.warn("[Room] Could not extract peerId from peer left event");
+                    return;
+                }
                 
                 setRemotePeers(prev => {
                     const updated = new Map(prev);
-                    const peer = updated.get(data.peerId);
-                    if (peer) {
-                        if (data.label === "audio") {
-                            peer.audioTrack = data.track;
-                            // Play audio immediately
-                            setTimeout(() => {
-                                const audioEl = remoteAudioRefs.current.get(data.peerId);
-                                if (audioEl) {
-                                    const stream = new MediaStream([data.track]);
-                                    audioEl.srcObject = stream;
-                                    audioEl.play().catch(e => console.warn("[Room] Audio play failed:", e));
-                                }
-                            }, 100);
-                        } else if (data.label === "video") {
-                            peer.videoTrack = data.track;
-                            // Play video immediately
-                            setTimeout(() => {
-                                const videoEl = remoteVideoRefs.current.get(data.peerId);
-                                if (videoEl) {
-                                    const stream = new MediaStream([data.track]);
-                                    videoEl.srcObject = stream;
-                                    videoEl.play().catch(e => console.warn("[Room] Video play failed:", e));
-                                }
-                            }, 100);
-                        }
-                        updated.set(data.peerId, { ...peer });
+                    updated.delete(peerId);
+                    return updated;
+                });
+                remoteVideoRefs.current.delete(peerId);
+                remoteAudioRefs.current.delete(peerId);
+            };
+            
+            roomEvents.on("peer-left", handlePeerLeft);
+
+            // Handle remote stream becoming available
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            roomEvents.on("stream-added", (data: any) => {
+                console.log("[Room] Remote stream added - raw data:", JSON.stringify(data, (key, value) => {
+                    if (value instanceof MediaStreamTrack) return `[MediaStreamTrack: ${value.kind}]`;
+                    if (value instanceof MediaStream) return `[MediaStream]`;
+                    if (typeof value === "function") return "[Function]";
+                    return value;
+                }, 2));
+                
+                const peerId = data?.peerId;
+                const label = data?.label;
+                
+                if (!peerId || !label) {
+                    console.warn("[Room] Missing peerId or label in stream-added");
+                    return;
+                }
+                
+                const track = extractTrack(data, label);
+                if (!track) {
+                    console.warn("[Room] Could not extract track from stream-added event");
+                    return;
+                }
+                
+                // Ensure peer exists in our map
+                setRemotePeers(prev => {
+                    const updated = new Map(prev);
+                    let peer = updated.get(peerId);
+                    
+                    // Create peer entry if it doesn't exist
+                    if (!peer) {
+                        console.log("[Room] Creating peer entry for:", peerId);
+                        peer = {
+                            peerId,
+                            displayName: `Participant ${peerId.slice(0, 6)}`,
+                            audioTrack: null,
+                            videoTrack: null,
+                        };
                     }
+                    
+                    if (label === "audio") {
+                        peer.audioTrack = track;
+                        setTimeout(() => {
+                            const audioEl = remoteAudioRefs.current.get(peerId);
+                            if (audioEl) {
+                                const stream = new MediaStream([track]);
+                                audioEl.srcObject = stream;
+                                audioEl.play().catch(e => console.warn("[Room] Audio play failed:", e));
+                            }
+                        }, 100);
+                    } else if (label === "video") {
+                        peer.videoTrack = track;
+                        setTimeout(() => {
+                            const videoEl = remoteVideoRefs.current.get(peerId);
+                            if (videoEl) {
+                                const stream = new MediaStream([track]);
+                                videoEl.srcObject = stream;
+                                videoEl.play().catch(e => console.warn("[Room] Video play failed:", e));
+                            }
+                        }, 100);
+                    }
+                    
+                    updated.set(peerId, { ...peer });
                     return updated;
                 });
             });
 
             // Handle remote stream being removed
-            roomEvents.on("stream-closed", (data: { peerId: string; label: string }) => {
-                console.log("[Room] Remote stream closed:", data.peerId, data.label);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            roomEvents.on("stream-closed", (data: any) => {
+                console.log("[Room] Remote stream closed:", data);
+                const peerId = data?.peerId;
+                const label = data?.label;
+                
+                if (!peerId) return;
                 
                 setRemotePeers(prev => {
                     const updated = new Map(prev);
-                    const peer = updated.get(data.peerId);
+                    const peer = updated.get(peerId);
                     if (peer) {
-                        if (data.label === "audio") {
+                        if (label === "audio") {
                             peer.audioTrack = null;
-                        } else if (data.label === "video") {
+                        } else if (label === "video") {
                             peer.videoTrack = null;
                         }
-                        updated.set(data.peerId, { ...peer });
+                        updated.set(peerId, { ...peer });
                     }
                     return updated;
                 });
