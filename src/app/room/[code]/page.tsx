@@ -31,7 +31,8 @@ type RemotePeer = {
 };
 
 // Dynamic imports for Huddle01
-let HuddleClient: typeof import("@huddle01/web-core").HuddleClient | null = null;
+let HuddleClient: typeof import("@huddle01/web-core").HuddleClient | null =
+    null;
 
 async function loadHuddle01SDK(): Promise<void> {
     if (HuddleClient) return;
@@ -39,7 +40,11 @@ async function loadHuddle01SDK(): Promise<void> {
     HuddleClient = module.HuddleClient;
 }
 
-export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
+export default function RoomPage({
+    params,
+}: {
+    params: Promise<{ code: string }>;
+}) {
     const { code } = use(params);
     const { address: userWalletAddress } = useWalletType();
     const [room, setRoom] = useState<RoomInfo | null>(null);
@@ -52,11 +57,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const [callDuration, setCallDuration] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
-    const [remotePeers, setRemotePeers] = useState<Map<string, RemotePeer>>(new Map());
+    const [remotePeers, setRemotePeers] = useState<Map<string, RemotePeer>>(
+        new Map()
+    );
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
-    const [selectedPeerMenu, setSelectedPeerMenu] = useState<string | null>(null);
-    
+    const [selectedPeerMenu, setSelectedPeerMenu] = useState<string | null>(
+        null
+    );
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const clientRef = useRef<any>(null);
     const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -68,7 +77,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         if (code) {
             fetchRoom();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [code]);
 
     // Helper to check if code is a wallet address
@@ -81,7 +90,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             // If it's a wallet address, ensure permanent room exists first
             if (isWalletAddress(code)) {
                 // Try to get or create permanent room
-                const permanentRes = await fetch(`/api/rooms/permanent?wallet_address=${code}`);
+                const permanentRes = await fetch(
+                    `/api/rooms/permanent?wallet_address=${code}`
+                );
                 if (!permanentRes.ok) {
                     setError("Failed to get permanent room");
                     setLoading(false);
@@ -110,15 +121,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
         setJoiningRoom(true);
         setError(null);
-        
+
         try {
             console.log("[Room] Getting token for room:", room.roomId);
-            
+
             // Get token
             const tokenRes = await fetch(`/api/rooms/${code}/token`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     displayName: displayName.trim(),
                     walletAddress: userWalletAddress || null,
                 }),
@@ -126,7 +137,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
             const tokenData = await tokenRes.json();
             console.log("[Room] Token response:", tokenRes.ok, tokenData);
-            
+
             if (!tokenRes.ok) {
                 setError(tokenData.error || "Failed to get access token");
                 setJoiningRoom(false);
@@ -137,7 +148,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             setIsHost(tokenData.isHost || false);
 
             console.log("[Room] Loading Huddle01 SDK...");
-            
+
             // Load Huddle01 SDK
             await loadHuddle01SDK();
             if (!HuddleClient) {
@@ -146,8 +157,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 return;
             }
 
-            console.log("[Room] Creating Huddle01 client with projectId:", huddle01ProjectId);
-            
+            console.log(
+                "[Room] Creating Huddle01 client with projectId:",
+                huddle01ProjectId
+            );
+
             if (!huddle01ProjectId) {
                 setError("Video calling not configured (missing project ID)");
                 setJoiningRoom(false);
@@ -163,22 +177,40 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             // Set up event listeners before joining
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const localPeerEvents = client.localPeer as any;
-            
-            localPeerEvents.on("stream-playable", (data: { label?: string; producer?: { track?: MediaStreamTrack } }) => {
-                console.log("[Room] Local stream playable:", data);
-                if (data.label === "video" && data.producer?.track && localVideoRef.current) {
-                    const stream = new MediaStream([data.producer.track]);
-                    localVideoRef.current.srcObject = stream;
-                    localVideoRef.current.play().catch(e => console.warn("[Room] Video play failed:", e));
+
+            localPeerEvents.on(
+                "stream-playable",
+                (data: {
+                    label?: string;
+                    producer?: { track?: MediaStreamTrack };
+                }) => {
+                    console.log("[Room] Local stream playable:", data);
+                    if (
+                        data.label === "video" &&
+                        data.producer?.track &&
+                        localVideoRef.current
+                    ) {
+                        const stream = new MediaStream([data.producer.track]);
+                        localVideoRef.current.srcObject = stream;
+                        localVideoRef.current
+                            .play()
+                            .catch((e) =>
+                                console.warn("[Room] Video play failed:", e)
+                            );
+                    }
                 }
-            });
+            );
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const roomEvents = client.room as any;
 
             // Helper to extract track from various sources with retry
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const extractTrack = (data: any, label: string, peerId: string): MediaStreamTrack | null => {
+            const extractTrack = (
+                data: any,
+                label: string,
+                peerId: string
+            ): MediaStreamTrack | null => {
                 // Method 1: Direct track property
                 if (data?.track instanceof MediaStreamTrack) {
                     console.log("[Room] Found track directly in event data");
@@ -191,9 +223,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 }
                 // Method 3: MediaStream in event
                 if (data?.stream instanceof MediaStream) {
-                    const tracks = label === "audio" 
-                        ? data.stream.getAudioTracks() 
-                        : data.stream.getVideoTracks();
+                    const tracks =
+                        label === "audio"
+                            ? data.stream.getAudioTracks()
+                            : data.stream.getVideoTracks();
                     if (tracks.length > 0) {
                         console.log("[Room] Found track in stream");
                         return tracks[0];
@@ -209,7 +242,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             const consumer = (peer as any).getConsumer?.(label);
                             if (consumer?.track instanceof MediaStreamTrack) {
-                                console.log("[Room] Found track via getConsumer");
+                                console.log(
+                                    "[Room] Found track via getConsumer"
+                                );
                                 return consumer.track;
                             }
                         } catch (e) {
@@ -232,12 +267,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
             // Helper to get display name from various sources
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const getDisplayName = (peerId: string, eventMetadata?: any): string => {
+            const getDisplayName = (
+                peerId: string,
+                eventMetadata?: any
+            ): string => {
                 // 1. Try event metadata
                 if (eventMetadata?.displayName) {
                     return eventMetadata.displayName;
                 }
-                
+
                 // 2. Try to get from remotePeers Map in Huddle01 client
                 try {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -253,7 +291,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 } catch (e) {
                     // Ignore errors accessing metadata
                 }
-                
+
                 // 3. Fallback to short ID
                 return `Guest ${getShortId(peerId)}`;
             };
@@ -261,22 +299,27 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             // Handle new peer joining (try both event names)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const handlePeerJoined = (data: any) => {
-                console.log("[Room] New peer joined - raw data:", JSON.stringify(data, null, 2));
-                
+                console.log(
+                    "[Room] New peer joined - raw data:",
+                    JSON.stringify(data, null, 2)
+                );
+
                 // Handle both { peer: {...} } and direct peer object structures
                 const peerData = data?.peer || data;
                 const peerId = peerData?.peerId || peerData?.id;
                 const metadata = peerData?.metadata || {};
-                
+
                 if (!peerId) {
-                    console.warn("[Room] Could not extract peerId from peer joined event");
+                    console.warn(
+                        "[Room] Could not extract peerId from peer joined event"
+                    );
                     return;
                 }
-                
+
                 const peerName = getDisplayName(peerId, metadata);
                 console.log("[Room] Adding peer:", peerId, "Name:", peerName);
-                
-                setRemotePeers(prev => {
+
+                setRemotePeers((prev) => {
                     const updated = new Map(prev);
                     updated.set(peerId, {
                         peerId,
@@ -287,7 +330,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                     return updated;
                 });
             };
-            
+
             // Try both event names (Huddle01 SDK uses different names in different versions)
             roomEvents.on("new-peer-joined", handlePeerJoined);
             roomEvents.on("peer-joined", handlePeerJoined);
@@ -298,13 +341,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 console.log("[Room] Peer left - raw data:", data);
                 const peerData = data?.peer || data;
                 const peerId = peerData?.peerId || peerData?.id || data?.peerId;
-                
+
                 if (!peerId) {
-                    console.warn("[Room] Could not extract peerId from peer left event");
+                    console.warn(
+                        "[Room] Could not extract peerId from peer left event"
+                    );
                     return;
                 }
-                
-                setRemotePeers(prev => {
+
+                setRemotePeers((prev) => {
                     const updated = new Map(prev);
                     updated.delete(peerId);
                     return updated;
@@ -312,45 +357,66 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 remoteVideoRefs.current.delete(peerId);
                 remoteAudioRefs.current.delete(peerId);
             };
-            
+
             roomEvents.on("peer-left", handlePeerLeft);
 
             // Handle remote stream becoming available
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             roomEvents.on("stream-added", (data: any) => {
-                console.log("[Room] Remote stream added - raw data:", JSON.stringify(data, (key, value) => {
-                    if (value instanceof MediaStreamTrack) return `[MediaStreamTrack: ${value.kind}]`;
-                    if (value instanceof MediaStream) return `[MediaStream]`;
-                    if (typeof value === "function") return "[Function]";
-                    return value;
-                }, 2));
-                
+                console.log(
+                    "[Room] Remote stream added - raw data:",
+                    JSON.stringify(
+                        data,
+                        (key, value) => {
+                            if (value instanceof MediaStreamTrack)
+                                return `[MediaStreamTrack: ${value.kind}]`;
+                            if (value instanceof MediaStream)
+                                return `[MediaStream]`;
+                            if (typeof value === "function")
+                                return "[Function]";
+                            return value;
+                        },
+                        2
+                    )
+                );
+
                 const peerId = data?.peerId;
                 const label = data?.label;
-                
+
                 if (!peerId || !label) {
-                    console.warn("[Room] Missing peerId or label in stream-added");
+                    console.warn(
+                        "[Room] Missing peerId or label in stream-added"
+                    );
                     return;
                 }
-                
+
                 // Function to try getting and attaching the track with retries
                 const tryAttachTrack = (attempt: number = 1) => {
-                    console.log(`[Room] Trying to attach ${label} track for ${peerId}, attempt ${attempt}`);
-                    
+                    console.log(
+                        `[Room] Trying to attach ${label} track for ${peerId}, attempt ${attempt}`
+                    );
+
                     const track = extractTrack(data, label, peerId);
-                    
+
                     if (track) {
-                        console.log(`[Room] Successfully got ${label} track for ${peerId}`);
-                        
+                        console.log(
+                            `[Room] Successfully got ${label} track for ${peerId}`
+                        );
+
                         // Ensure peer exists in our map and update track
-                        setRemotePeers(prev => {
+                        setRemotePeers((prev) => {
                             const updated = new Map(prev);
                             let peer = updated.get(peerId);
-                            
+
                             // Create peer entry if it doesn't exist
                             if (!peer) {
                                 const displayName = getDisplayName(peerId);
-                                console.log("[Room] Creating peer entry for:", peerId, "Name:", displayName);
+                                console.log(
+                                    "[Room] Creating peer entry for:",
+                                    peerId,
+                                    "Name:",
+                                    displayName
+                                );
                                 peer = {
                                     peerId,
                                     displayName,
@@ -358,17 +424,28 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                                     videoTrack: null,
                                 };
                             }
-                            
+
                             if (label === "audio") {
                                 peer.audioTrack = track;
                                 // Try to play audio immediately and also with a small delay
                                 const playAudio = () => {
-                                    const audioEl = remoteAudioRefs.current.get(peerId);
+                                    const audioEl =
+                                        remoteAudioRefs.current.get(peerId);
                                     if (audioEl) {
                                         const stream = new MediaStream([track]);
                                         audioEl.srcObject = stream;
-                                        audioEl.play().catch(e => console.warn("[Room] Audio play failed:", e));
-                                        console.log("[Room] Audio element updated for peer:", peerId);
+                                        audioEl
+                                            .play()
+                                            .catch((e) =>
+                                                console.warn(
+                                                    "[Room] Audio play failed:",
+                                                    e
+                                                )
+                                            );
+                                        console.log(
+                                            "[Room] Audio element updated for peer:",
+                                            peerId
+                                        );
                                     }
                                 };
                                 playAudio();
@@ -377,31 +454,46 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                                 peer.videoTrack = track;
                                 // Try to play video immediately and also with a small delay
                                 const playVideo = () => {
-                                    const videoEl = remoteVideoRefs.current.get(peerId);
+                                    const videoEl =
+                                        remoteVideoRefs.current.get(peerId);
                                     if (videoEl) {
                                         const stream = new MediaStream([track]);
                                         videoEl.srcObject = stream;
-                                        videoEl.play().catch(e => console.warn("[Room] Video play failed:", e));
-                                        console.log("[Room] Video element updated for peer:", peerId);
+                                        videoEl
+                                            .play()
+                                            .catch((e) =>
+                                                console.warn(
+                                                    "[Room] Video play failed:",
+                                                    e
+                                                )
+                                            );
+                                        console.log(
+                                            "[Room] Video element updated for peer:",
+                                            peerId
+                                        );
                                     }
                                 };
                                 playVideo();
                                 setTimeout(playVideo, 200);
                             }
-                            
+
                             updated.set(peerId, { ...peer });
                             return updated;
                         });
                     } else if (attempt < 5) {
                         // Track not found - retry with increasing delay
                         const delay = attempt * 200;
-                        console.log(`[Room] Track not found, will retry in ${delay}ms`);
+                        console.log(
+                            `[Room] Track not found, will retry in ${delay}ms`
+                        );
                         setTimeout(() => tryAttachTrack(attempt + 1), delay);
                     } else {
-                        console.warn(`[Room] Could not find ${label} track after ${attempt} attempts for ${peerId}`);
-                        
+                        console.warn(
+                            `[Room] Could not find ${label} track after ${attempt} attempts for ${peerId}`
+                        );
+
                         // Still create the peer entry so they show in the UI
-                        setRemotePeers(prev => {
+                        setRemotePeers((prev) => {
                             const updated = new Map(prev);
                             if (!updated.has(peerId)) {
                                 const displayName = getDisplayName(peerId);
@@ -416,7 +508,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                         });
                     }
                 };
-                
+
                 // Start trying to attach the track
                 tryAttachTrack(1);
             });
@@ -427,10 +519,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 console.log("[Room] Remote stream closed:", data);
                 const peerId = data?.peerId;
                 const label = data?.label;
-                
+
                 if (!peerId) return;
-                
-                setRemotePeers(prev => {
+
+                setRemotePeers((prev) => {
                     const updated = new Map(prev);
                     const peer = updated.get(peerId);
                     if (peer) {
@@ -446,7 +538,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             });
 
             console.log("[Room] Joining room:", room.roomId);
-            
+
             await client.joinRoom({
                 roomId: room.roomId,
                 token: tokenData.token,
@@ -460,7 +552,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             } catch (audioErr) {
                 console.warn("[Room] Could not enable audio:", audioErr);
             }
-            
+
             try {
                 await client.localPeer.enableVideo();
             } catch (videoErr) {
@@ -469,14 +561,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
             // Start duration timer
             durationIntervalRef.current = setInterval(() => {
-                setCallDuration(d => d + 1);
+                setCallDuration((d) => d + 1);
             }, 1000);
 
             setInCall(true);
             setJoiningRoom(false);
         } catch (err) {
             console.error("[Room] Join error:", err);
-            const errorMessage = err instanceof Error ? err.message : "Unknown error";
+            const errorMessage =
+                err instanceof Error ? err.message : "Unknown error";
             setError(`Failed to join room: ${errorMessage}`);
             setJoiningRoom(false);
         }
@@ -523,9 +616,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             } else {
                 await clientRef.current.localPeer.disableVideo();
                 if (localVideoRef.current) {
-                    const stream = localVideoRef.current.srcObject as MediaStream;
+                    const stream = localVideoRef.current
+                        .srcObject as MediaStream;
                     if (stream) {
-                        stream.getTracks().forEach(t => t.stop());
+                        stream.getTracks().forEach((t) => t.stop());
                     }
                     localVideoRef.current.srcObject = null;
                 }
@@ -539,57 +633,63 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const formatDuration = (seconds: number): string => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
-        return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+        return `${mins.toString().padStart(2, "0")}:${secs
+            .toString()
+            .padStart(2, "0")}`;
     };
 
     // Kick/remove a participant (host only)
-    const handleKickPeer = useCallback(async (peerId: string) => {
-        if (!isHost || !clientRef.current) return;
-        
-        try {
-            console.log("[Room] Kicking peer:", peerId);
-            
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const room = clientRef.current.room as any;
-            
-            // Try different methods to kick a peer
-            if (room.kickPeer) {
-                await room.kickPeer(peerId);
-            } else if (room.removePeer) {
-                await room.removePeer(peerId);
-            } else if (room.closePeerConnection) {
-                await room.closePeerConnection(peerId);
-            } else {
-                // Fallback: try to get the peer and close their connection
+    const handleKickPeer = useCallback(
+        async (peerId: string) => {
+            if (!isHost || !clientRef.current) return;
+
+            try {
+                console.log("[Room] Kicking peer:", peerId);
+
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const remotePeers = room.remotePeers;
-                if (remotePeers) {
-                    const peer = remotePeers.get(peerId);
-                    if (peer) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const peerAny = peer as any;
-                        if (peerAny.close) {
-                            await peerAny.close();
+                const room = clientRef.current.room as any;
+
+                // Try different methods to kick a peer
+                if (room.kickPeer) {
+                    await room.kickPeer(peerId);
+                } else if (room.removePeer) {
+                    await room.removePeer(peerId);
+                } else if (room.closePeerConnection) {
+                    await room.closePeerConnection(peerId);
+                } else {
+                    // Fallback: try to get the peer and close their connection
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const remotePeers = room.remotePeers;
+                    if (remotePeers) {
+                        const peer = remotePeers.get(peerId);
+                        if (peer) {
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const peerAny = peer as any;
+                            if (peerAny.close) {
+                                await peerAny.close();
+                            }
                         }
                     }
+                    console.warn(
+                        "[Room] No kick method available, peer may not be removed"
+                    );
                 }
-                console.warn("[Room] No kick method available, peer may not be removed");
+
+                // Remove from our local state
+                setRemotePeers((prev) => {
+                    const updated = new Map(prev);
+                    updated.delete(peerId);
+                    return updated;
+                });
+                remoteVideoRefs.current.delete(peerId);
+                remoteAudioRefs.current.delete(peerId);
+                setSelectedPeerMenu(null);
+            } catch (err) {
+                console.error("[Room] Error kicking peer:", err);
             }
-            
-            // Remove from our local state
-            setRemotePeers(prev => {
-                const updated = new Map(prev);
-                updated.delete(peerId);
-                return updated;
-            });
-            remoteVideoRefs.current.delete(peerId);
-            remoteAudioRefs.current.delete(peerId);
-            setSelectedPeerMenu(null);
-            
-        } catch (err) {
-            console.error("[Room] Error kicking peer:", err);
-        }
-    }, [isHost]);
+        },
+        [isHost]
+    );
 
     // Cleanup on unmount
     useEffect(() => {
@@ -613,7 +713,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
     if (error || !room) {
         const isJoinError = error?.includes("Failed to join");
-        
+
         return (
             <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
                 <motion.div
@@ -622,16 +722,23 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                     className="text-center max-w-md"
                 >
                     <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-zinc-800/50 flex items-center justify-center">
-                        <span className="text-4xl">{isJoinError ? "⚠️" : "🚫"}</span>
+                        <span className="text-4xl">
+                            {isJoinError ? "⚠️" : "🚫"}
+                        </span>
                     </div>
                     <h1 className="text-2xl font-bold text-white mb-3">
-                        {error === "Room not found" ? "Room Not Found" : 
-                         error === "This room has ended" ? "Room Ended" :
-                         error === "This room has expired" ? "Room Expired" :
-                         isJoinError ? "Connection Issue" : "Error"}
+                        {error === "Room not found"
+                            ? "Room Not Found"
+                            : error === "This room has ended"
+                            ? "Room Ended"
+                            : error === "This room has expired"
+                            ? "Room Expired"
+                            : isJoinError
+                            ? "Connection Issue"
+                            : "Error"}
                     </h1>
                     <p className="text-zinc-400 mb-8">
-                        {error === "Room not found" 
+                        {error === "Room not found"
                             ? "This room code doesn't exist. Please check the code and try again."
                             : error === "This room has ended"
                             ? "The host has ended this meeting."
@@ -669,7 +776,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         const remotePeerArray = Array.from(remotePeers.values());
         const hasRemotePeers = remotePeerArray.length > 0;
         const totalParticipants = remotePeerArray.length + 1;
-        
+
         // Calculate grid layout based on participants
         const getGridClass = () => {
             if (totalParticipants === 1) return "grid-cols-1";
@@ -677,31 +784,47 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             if (totalParticipants <= 4) return "grid-cols-2 grid-rows-2";
             return "grid-cols-2 grid-rows-2"; // Max 4 shown
         };
-        
+
         return (
             <div className="h-screen h-[100dvh] bg-zinc-950 flex flex-col overflow-hidden">
                 {/* Header - fixed height */}
                 <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800">
                     <div className="flex items-center gap-3">
                         <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
-                        <span className="text-white font-medium text-sm truncate max-w-[150px]">{room.title}</span>
-                        <span className="text-zinc-500 text-xs">{formatDuration(callDuration)}</span>
+                        <span className="text-white font-medium text-sm truncate max-w-[150px]">
+                            {room.title}
+                        </span>
+                        <span className="text-zinc-500 text-xs">
+                            {formatDuration(callDuration)}
+                        </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-zinc-400">
                         <span>👥 {totalParticipants}</span>
-                        <span className="hidden sm:inline">🔗 {room.joinCode}</span>
+                        <span className="hidden sm:inline">
+                            🔗 {room.joinCode}
+                        </span>
                         {/* Chat Toggle in Header */}
                         <button
                             onClick={() => setIsChatOpen(!isChatOpen)}
                             className={`relative p-1.5 rounded-lg transition-colors ${
-                                isChatOpen 
-                                    ? "bg-orange-500/20 text-orange-400" 
+                                isChatOpen
+                                    ? "bg-orange-500/20 text-orange-400"
                                     : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
                             }`}
                             title="Toggle chat"
                         >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                />
                             </svg>
                             {unreadMessages > 0 && !isChatOpen && (
                                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-[10px] text-white flex items-center justify-center font-medium">
@@ -715,169 +838,253 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 {/* Main content area - fills remaining space */}
                 <div className="flex-1 flex min-h-0 overflow-hidden">
                     {/* Video Area - shrinks when chat is open */}
-                    <div className={`p-2 sm:p-3 overflow-hidden transition-all duration-300 ${
-                        isChatOpen ? "flex-1 sm:w-[calc(100%-320px)]" : "flex-1"
-                    }`}>
-                        <div className={`h-full grid gap-2 sm:gap-3 ${getGridClass()}`}>
-                        {/* Local Video */}
-                        <div className="relative bg-zinc-900 rounded-2xl overflow-hidden">
-                            {!isVideoOff ? (
-                                <video
-                                    ref={localVideoRef}
-                                    autoPlay
-                                    playsInline
-                                    muted
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
-                                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                                        <span className="text-3xl sm:text-4xl text-white font-bold">
-                                            {displayName[0]?.toUpperCase() || "?"}
-                                        </span>
+                    <div
+                        className={`p-2 sm:p-3 overflow-hidden transition-all duration-300 ${
+                            isChatOpen
+                                ? "flex-1 sm:w-[calc(100%-320px)]"
+                                : "flex-1"
+                        }`}
+                    >
+                        <div
+                            className={`h-full grid gap-2 sm:gap-3 ${getGridClass()}`}
+                        >
+                            {/* Local Video */}
+                            <div className="relative bg-zinc-900 rounded-2xl overflow-hidden">
+                                {!isVideoOff ? (
+                                    <video
+                                        ref={localVideoRef}
+                                        autoPlay
+                                        playsInline
+                                        muted
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
+                                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                                            <span className="text-3xl sm:text-4xl text-white font-bold">
+                                                {displayName[0]?.toUpperCase() ||
+                                                    "?"}
+                                            </span>
+                                        </div>
                                     </div>
+                                )}
+                                <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                                    <span className="px-2 py-1 bg-black/60 rounded-lg text-white text-xs sm:text-sm">
+                                        {displayName} (You)
+                                    </span>
+                                    {isHost && (
+                                        <span className="px-2 py-1 bg-orange-500/80 rounded-lg text-white text-xs font-medium">
+                                            👑 Host
+                                        </span>
+                                    )}
+                                    {isMuted && (
+                                        <span className="px-2 py-1 bg-red-500/80 rounded-lg text-white text-xs">
+                                            🔇
+                                        </span>
+                                    )}
                                 </div>
-                            )}
-                            <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                                <span className="px-2 py-1 bg-black/60 rounded-lg text-white text-xs sm:text-sm">
-                                    {displayName} (You)
-                                </span>
-                                {isHost && (
-                                    <span className="px-2 py-1 bg-orange-500/80 rounded-lg text-white text-xs font-medium">
-                                        👑 Host
-                                    </span>
-                                )}
-                                {isMuted && (
-                                    <span className="px-2 py-1 bg-red-500/80 rounded-lg text-white text-xs">
-                                        🔇
-                                    </span>
-                                )}
                             </div>
-                        </div>
 
-                        {/* Remote Peers */}
-                        <AnimatePresence>
-                            {remotePeerArray.map((peer) => (
-                                <motion.div
-                                    key={peer.peerId}
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.9 }}
-                                    className="relative bg-zinc-900 rounded-2xl overflow-hidden"
-                                >
-                                    {peer.videoTrack ? (
-                                        <video
+                            {/* Remote Peers */}
+                            <AnimatePresence>
+                                {remotePeerArray.map((peer) => (
+                                    <motion.div
+                                        key={peer.peerId}
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                        className="relative bg-zinc-900 rounded-2xl overflow-hidden"
+                                    >
+                                        {peer.videoTrack ? (
+                                            <video
+                                                ref={(el) => {
+                                                    if (el) {
+                                                        remoteVideoRefs.current.set(
+                                                            peer.peerId,
+                                                            el
+                                                        );
+                                                        // Try to play if we have a track
+                                                        if (
+                                                            peer.videoTrack &&
+                                                            !el.srcObject
+                                                        ) {
+                                                            el.srcObject =
+                                                                new MediaStream(
+                                                                    [
+                                                                        peer.videoTrack,
+                                                                    ]
+                                                                );
+                                                            el.play().catch(
+                                                                () => {}
+                                                            );
+                                                        }
+                                                    }
+                                                }}
+                                                autoPlay
+                                                playsInline
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
+                                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                                                    <span className="text-3xl sm:text-4xl text-white font-bold">
+                                                        {peer.displayName[0]?.toUpperCase() ||
+                                                            "?"}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {/* Remote Audio Element (hidden) */}
+                                        <audio
                                             ref={(el) => {
                                                 if (el) {
-                                                    remoteVideoRefs.current.set(peer.peerId, el);
+                                                    remoteAudioRefs.current.set(
+                                                        peer.peerId,
+                                                        el
+                                                    );
                                                     // Try to play if we have a track
-                                                    if (peer.videoTrack && !el.srcObject) {
-                                                        el.srcObject = new MediaStream([peer.videoTrack]);
-                                                        el.play().catch(() => {});
+                                                    if (
+                                                        peer.audioTrack &&
+                                                        !el.srcObject
+                                                    ) {
+                                                        el.srcObject =
+                                                            new MediaStream([
+                                                                peer.audioTrack,
+                                                            ]);
+                                                        el.play().catch(
+                                                            () => {}
+                                                        );
                                                     }
                                                 }
                                             }}
                                             autoPlay
-                                            playsInline
-                                            className="w-full h-full object-cover"
+                                            className="hidden"
                                         />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
-                                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                                                <span className="text-3xl sm:text-4xl text-white font-bold">
-                                                    {peer.displayName[0]?.toUpperCase() || "?"}
-                                                </span>
-                                            </div>
+                                        <div className="absolute bottom-3 left-3">
+                                            <span className="px-2 py-1 bg-black/60 rounded-lg text-white text-xs sm:text-sm">
+                                                {peer.displayName}
+                                            </span>
                                         </div>
-                                    )}
-                                    {/* Remote Audio Element (hidden) */}
-                                    <audio
-                                        ref={(el) => {
-                                            if (el) {
-                                                remoteAudioRefs.current.set(peer.peerId, el);
-                                                // Try to play if we have a track
-                                                if (peer.audioTrack && !el.srcObject) {
-                                                    el.srcObject = new MediaStream([peer.audioTrack]);
-                                                    el.play().catch(() => {});
-                                                }
-                                            }
-                                        }}
-                                        autoPlay
-                                        className="hidden"
-                                    />
-                                    <div className="absolute bottom-3 left-3">
-                                        <span className="px-2 py-1 bg-black/60 rounded-lg text-white text-xs sm:text-sm">
-                                            {peer.displayName}
-                                        </span>
-                                    </div>
-                                    
-                                    {/* Host Controls - Menu Button */}
-                                    {isHost && (
-                                        <div className="absolute top-3 right-3">
-                                            <div className="relative">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedPeerMenu(
-                                                            selectedPeerMenu === peer.peerId ? null : peer.peerId
-                                                        );
-                                                    }}
-                                                    className="p-2 bg-black/60 hover:bg-black/80 rounded-lg text-white transition-colors"
-                                                    title="Manage participant"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                                                    </svg>
-                                                </button>
-                                                
-                                                {/* Dropdown Menu */}
-                                                <AnimatePresence>
-                                                    {selectedPeerMenu === peer.peerId && (
-                                                        <>
-                                                            <div
-                                                                className="fixed inset-0 z-40"
-                                                                onClick={() => setSelectedPeerMenu(null)}
-                                                            />
-                                                            <motion.div
-                                                                initial={{ opacity: 0, y: -10 }}
-                                                                animate={{ opacity: 1, y: 0 }}
-                                                                exit={{ opacity: 0, y: -10 }}
-                                                                className="absolute right-0 top-full mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl z-50 overflow-hidden"
-                                                            >
-                                                                <button
-                                                                    onClick={() => handleKickPeer(peer.peerId)}
-                                                                    className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 12H6" />
-                                                                    </svg>
-                                                                    <span className="text-sm font-medium">Remove from room</span>
-                                                                </button>
-                                                            </motion.div>
-                                                        </>
-                                                    )}
-                                                </AnimatePresence>
-                                            </div>
-                                        </div>
-                                    )}
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
 
-                        {/* Waiting for others message */}
-                        {!hasRemotePeers && (
-                            <div className="flex items-center justify-center bg-zinc-900/50 rounded-2xl border-2 border-dashed border-zinc-700">
-                                <div className="text-center p-4">
-                                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-800 flex items-center justify-center">
-                                        <span className="text-3xl">👥</span>
+                                        {/* Host Controls - Menu Button */}
+                                        {isHost && (
+                                            <div className="absolute top-3 right-3">
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedPeerMenu(
+                                                                selectedPeerMenu ===
+                                                                    peer.peerId
+                                                                    ? null
+                                                                    : peer.peerId
+                                                            );
+                                                        }}
+                                                        className="p-2 bg-black/60 hover:bg-black/80 rounded-lg text-white transition-colors"
+                                                        title="Manage participant"
+                                                    >
+                                                        <svg
+                                                            className="w-4 h-4"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                                                            />
+                                                        </svg>
+                                                    </button>
+
+                                                    {/* Dropdown Menu */}
+                                                    <AnimatePresence>
+                                                        {selectedPeerMenu ===
+                                                            peer.peerId && (
+                                                            <>
+                                                                <div
+                                                                    className="fixed inset-0 z-40"
+                                                                    onClick={() =>
+                                                                        setSelectedPeerMenu(
+                                                                            null
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <motion.div
+                                                                    initial={{
+                                                                        opacity: 0,
+                                                                        y: -10,
+                                                                    }}
+                                                                    animate={{
+                                                                        opacity: 1,
+                                                                        y: 0,
+                                                                    }}
+                                                                    exit={{
+                                                                        opacity: 0,
+                                                                        y: -10,
+                                                                    }}
+                                                                    className="absolute right-0 top-full mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl z-50 overflow-hidden"
+                                                                >
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            handleKickPeer(
+                                                                                peer.peerId
+                                                                            )
+                                                                        }
+                                                                        className="w-full px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                                                                    >
+                                                                        <svg
+                                                                            className="w-4 h-4"
+                                                                            fill="none"
+                                                                            viewBox="0 0 24 24"
+                                                                            stroke="currentColor"
+                                                                        >
+                                                                            <path
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                                strokeWidth={
+                                                                                    2
+                                                                                }
+                                                                                d="M18 12H6"
+                                                                            />
+                                                                        </svg>
+                                                                        <span className="text-sm font-medium">
+                                                                            Remove
+                                                                            from
+                                                                            room
+                                                                        </span>
+                                                                    </button>
+                                                                </motion.div>
+                                                            </>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+
+                            {/* Waiting for others message */}
+                            {!hasRemotePeers && (
+                                <div className="flex items-center justify-center bg-zinc-900/50 rounded-2xl border-2 border-dashed border-zinc-700">
+                                    <div className="text-center p-4">
+                                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-800 flex items-center justify-center">
+                                            <span className="text-3xl">👥</span>
+                                        </div>
+                                        <p className="text-zinc-400 text-sm">
+                                            Waiting for others to join...
+                                        </p>
+                                        <p className="text-zinc-500 text-xs mt-2">
+                                            Share code:{" "}
+                                            <span className="text-orange-400 font-mono">
+                                                {room.joinCode}
+                                            </span>
+                                        </p>
                                     </div>
-                                    <p className="text-zinc-400 text-sm">Waiting for others to join...</p>
-                                    <p className="text-zinc-500 text-xs mt-2">
-                                        Share code: <span className="text-orange-400 font-mono">{room.joinCode}</span>
-                                    </p>
                                 </div>
-                            </div>
-                        )}
+                            )}
                         </div>
                     </div>
 
@@ -905,13 +1112,38 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                             title={isMuted ? "Unmute" : "Mute"}
                         >
                             {!isMuted ? (
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                                    />
                                 </svg>
                             ) : (
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                                <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                                    />
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+                                    />
                                 </svg>
                             )}
                         </button>
@@ -924,15 +1156,39 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                                     ? "bg-zinc-800 hover:bg-zinc-700 text-white"
                                     : "bg-red-500 hover:bg-red-600 text-white"
                             }`}
-                            title={isVideoOff ? "Turn on camera" : "Turn off camera"}
+                            title={
+                                isVideoOff
+                                    ? "Turn on camera"
+                                    : "Turn off camera"
+                            }
                         >
                             {!isVideoOff ? (
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                    />
                                 </svg>
                             ) : (
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                                    />
                                 </svg>
                             )}
                         </button>
@@ -941,14 +1197,24 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                         <button
                             onClick={() => setIsChatOpen(!isChatOpen)}
                             className={`relative p-3 rounded-full transition-all hidden sm:block ${
-                                isChatOpen 
-                                    ? "bg-orange-500 hover:bg-orange-600 text-white" 
+                                isChatOpen
+                                    ? "bg-orange-500 hover:bg-orange-600 text-white"
                                     : "bg-zinc-800 hover:bg-zinc-700 text-white"
                             }`}
                             title={isChatOpen ? "Close chat" : "Open chat"}
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                                />
                             </svg>
                             {unreadMessages > 0 && !isChatOpen && (
                                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-[10px] text-white flex items-center justify-center font-medium animate-pulse">
@@ -963,13 +1229,26 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                             className="p-3 rounded-full bg-red-500 hover:bg-red-600 text-white transition-all"
                             title="Leave meeting"
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
+                            <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"
+                                />
                             </svg>
                         </button>
                     </div>
                     <p className="text-center text-xs text-zinc-500 mt-2 hidden sm:block">
-                        Share: <span className="font-mono text-orange-400">{room.joinCode}</span>
+                        Share:{" "}
+                        <span className="font-mono text-orange-400">
+                            {room.joinCode}
+                        </span>
                     </p>
                 </div>
             </div>
@@ -1000,7 +1279,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
                             <span className="text-3xl">🎥</span>
                         </div>
-                        <h1 className="text-xl font-bold text-white mb-2">{room.title}</h1>
+                        <h1 className="text-xl font-bold text-white mb-2">
+                            {room.title}
+                        </h1>
                         <p className="text-zinc-400 text-sm">
                             Hosted by {room.host.displayName}
                         </p>
@@ -1030,7 +1311,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                                 className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                                 maxLength={30}
                                 onKeyDown={(e) => {
-                                    if (e.key === "Enter" && displayName.trim()) {
+                                    if (
+                                        e.key === "Enter" &&
+                                        displayName.trim()
+                                    ) {
                                         handleJoin();
                                     }
                                 }}
@@ -1039,7 +1323,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
                         <button
                             onClick={handleJoin}
-                            disabled={!displayName.trim() || joiningRoom || !isHuddle01Configured}
+                            disabled={
+                                !displayName.trim() ||
+                                joiningRoom ||
+                                !isHuddle01Configured
+                            }
                             className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-green-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {joiningRoom ? (
@@ -1071,7 +1359,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 {/* Powered by */}
                 <p className="text-center text-xs text-zinc-600 mt-6">
                     Powered by{" "}
-                    <Link href="/" className="text-orange-500 hover:text-orange-400">
+                    <Link
+                        href="/"
+                        className="text-orange-500 hover:text-orange-400"
+                    >
                         Spritz
                     </Link>
                 </p>

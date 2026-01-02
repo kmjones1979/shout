@@ -711,47 +711,273 @@ export function AgentsSection({ userAddress }: AgentsSectionProps) {
                                                     <div>
                                                         <div className="relative">
                                                             <textarea
-                                                                value={`import React from 'react';
+                                                                value={`import React, { useState } from 'react';
 
 export function SpritzAgent() {
+  const [messages, setMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const agentId = '${agent.id}';
+  const apiUrl = 'https://app.spritz.chat/api/public/agents';
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setLoading(true);
+
+    try {
+      // Note: If agent has x402 enabled, add payment header:
+      // 'X-Payment': JSON.stringify({ from: walletAddress, amount: price, ... })
+      const response = await fetch(\`\${apiUrl}/\${agentId}/chat\`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          sessionId: 'session-' + Date.now(), // Optional: persist sessionId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
+
+      const data = await response.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error. Please try again.' 
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <iframe
-      src="${publicUrl}"
-      width="100%"
-      height="600"
-      frameBorder="0"
-      allow="clipboard-read; clipboard-write"
-      style={{
-        borderRadius: '12px',
-        border: '1px solid #3f3f46'
-      }}
-      title="Spritz AI Agent"
-    />
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: '600px',
+      border: '1px solid #3f3f46',
+      borderRadius: '12px',
+      backgroundColor: '#18181b'
+    }}>
+      <div style={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
+      }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: 'center', color: '#a1a1aa', marginTop: '40px' }}>
+            <p>Start a conversation with ${agent.name}</p>
+          </div>
+        )}
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            style={{
+              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              maxWidth: '80%',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              backgroundColor: msg.role === 'user' ? '#3b82f6' : '#27272a',
+              color: '#fff'
+            }}
+          >
+            {msg.content}
+          </div>
+        ))}
+        {loading && (
+          <div style={{ alignSelf: 'flex-start', color: '#a1a1aa' }}>
+            Thinking...
+          </div>
+        )}
+      </div>
+      <div style={{ 
+        padding: '16px', 
+        borderTop: '1px solid #3f3f46',
+        display: 'flex',
+        gap: '8px'
+      }}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          placeholder="Type your message..."
+          style={{
+            flex: 1,
+            padding: '12px',
+            borderRadius: '8px',
+            border: '1px solid #3f3f46',
+            backgroundColor: '#27272a',
+            color: '#fff',
+            outline: 'none'
+          }}
+        />
+        <button
+          onClick={sendMessage}
+          disabled={loading || !input.trim()}
+          style={{
+            padding: '12px 24px',
+            borderRadius: '8px',
+            backgroundColor: '#f97316',
+            color: '#fff',
+            border: 'none',
+            cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+            opacity: loading || !input.trim() ? 0.5 : 1
+          }}
+        >
+          Send
+        </button>
+      </div>
+    </div>
   );
 }`}
                                                                 readOnly
-                                                                rows={15}
+                                                                rows={80}
                                                                 className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white text-xs font-mono resize-none"
                                                             />
                                                             <button
                                                                 onClick={async () => {
                                                                     try {
-                                                                        const reactCode = `import React from 'react';
+                                                                        const reactCode = `import React, { useState } from 'react';
 
 export function SpritzAgent() {
+  const [messages, setMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const agentId = '${agent.id}';
+  const apiUrl = 'https://app.spritz.chat/api/public/agents';
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setLoading(true);
+
+    try {
+      const response = await fetch(\`\${apiUrl}/\${agentId}/chat\`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          sessionId: 'session-' + Date.now(), // Optional: persist sessionId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
+
+      const data = await response.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error. Please try again.' 
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <iframe
-      src="${publicUrl}"
-      width="100%"
-      height="600"
-      frameBorder="0"
-      allow="clipboard-read; clipboard-write"
-      style={{
-        borderRadius: '12px',
-        border: '1px solid #3f3f46'
-      }}
-      title="Spritz AI Agent"
-    />
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: '600px',
+      border: '1px solid #3f3f46',
+      borderRadius: '12px',
+      backgroundColor: '#18181b'
+    }}>
+      <div style={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
+      }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: 'center', color: '#a1a1aa', marginTop: '40px' }}>
+            <p>Start a conversation with ${agent.name}</p>
+          </div>
+        )}
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            style={{
+              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              maxWidth: '80%',
+              padding: '12px 16px',
+              borderRadius: '12px',
+              backgroundColor: msg.role === 'user' ? '#3b82f6' : '#27272a',
+              color: '#fff'
+            }}
+          >
+            {msg.content}
+          </div>
+        ))}
+        {loading && (
+          <div style={{ alignSelf: 'flex-start', color: '#a1a1aa' }}>
+            Thinking...
+          </div>
+        )}
+      </div>
+      <div style={{ 
+        padding: '16px', 
+        borderTop: '1px solid #3f3f46',
+        display: 'flex',
+        gap: '8px'
+      }}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          placeholder="Type your message..."
+          style={{
+            flex: 1,
+            padding: '12px',
+            borderRadius: '8px',
+            border: '1px solid #3f3f46',
+            backgroundColor: '#27272a',
+            color: '#fff',
+            outline: 'none'
+          }}
+        />
+        <button
+          onClick={sendMessage}
+          disabled={loading || !input.trim()}
+          style={{
+            padding: '12px 24px',
+            borderRadius: '8px',
+            backgroundColor: '#f97316',
+            color: '#fff',
+            border: 'none',
+            cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+            opacity: loading || !input.trim() ? 0.5 : 1
+          }}
+        >
+          Send
+        </button>
+      </div>
+    </div>
   );
 }`;
                                                                         await navigator.clipboard.writeText(reactCode);
@@ -773,7 +999,7 @@ export function SpritzAgent() {
                                                             </button>
                                                         </div>
                                                         <p className="text-xs text-zinc-500 mt-1.5">
-                                                            Use this React component in your app
+                                                            Native React component that calls the agent API directly
                                                         </p>
                                                     </div>
                                                 )}
@@ -785,26 +1011,102 @@ export function SpritzAgent() {
                                                             <textarea
                                                                 value={`'use client';
 
-import React from 'react';
+import { useState } from 'react';
 
 export default function SpritzAgent() {
+  const [messages, setMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const agentId = '${agent.id}';
+  const apiUrl = 'https://app.spritz.chat/api/public/agents';
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setLoading(true);
+
+    try {
+      // Note: If agent has x402 enabled, add payment header:
+      // 'X-Payment': JSON.stringify({ from: walletAddress, amount: price, ... })
+      const response = await fetch(\`\${apiUrl}/\${agentId}/chat\`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          sessionId: typeof window !== 'undefined' 
+            ? localStorage.getItem('spritz-session-id') || 'session-' + Date.now()
+            : 'session-' + Date.now(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
+
+      const data = await response.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error. Please try again.' 
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <iframe
-      src="${publicUrl}"
-      width="100%"
-      height="600"
-      frameBorder="0"
-      allow="clipboard-read; clipboard-write"
-      style={{
-        borderRadius: '12px',
-        border: '1px solid #3f3f46'
-      }}
-      title="Spritz AI Agent"
-    />
+    <div className="flex flex-col h-[600px] border border-zinc-700 rounded-xl bg-zinc-950">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+        {messages.length === 0 && (
+          <div className="text-center text-zinc-400 mt-10">
+            <p>Start a conversation with ${agent.name}</p>
+          </div>
+        )}
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={\`max-w-[80%] px-4 py-3 rounded-xl \${msg.role === 'user' 
+              ? 'bg-blue-500 text-white self-end' 
+              : 'bg-zinc-800 text-white self-start'}\`}
+          >
+            {msg.content}
+          </div>
+        ))}
+        {loading && (
+          <div className="text-zinc-400 self-start">
+            Thinking...
+          </div>
+        )}
+      </div>
+      <div className="p-4 border-t border-zinc-700 flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          placeholder="Type your message..."
+          className="flex-1 px-4 py-3 rounded-lg border border-zinc-700 bg-zinc-900 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+        />
+        <button
+          onClick={sendMessage}
+          disabled={loading || !input.trim()}
+          className="px-6 py-3 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Send
+        </button>
+      </div>
+    </div>
   );
 }`}
                                                                 readOnly
-                                                                rows={18}
+                                                                rows={85}
                                                                 className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white text-xs font-mono resize-none"
                                                             />
                                                             <button
@@ -812,22 +1114,96 @@ export default function SpritzAgent() {
                                                                     try {
                                                                         const nextjsCode = `'use client';
 
-import React from 'react';
+import { useState } from 'react';
 
 export default function SpritzAgent() {
+  const [messages, setMessages] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const agentId = '${agent.id}';
+  const apiUrl = 'https://app.spritz.chat/api/public/agents';
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setLoading(true);
+
+    try {
+      const response = await fetch(\`\${apiUrl}/\${agentId}/chat\`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          sessionId: typeof window !== 'undefined' 
+            ? localStorage.getItem('spritz-session-id') || 'session-' + Date.now()
+            : 'session-' + Date.now(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
+
+      const data = await response.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error. Please try again.' 
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <iframe
-      src="${publicUrl}"
-      width="100%"
-      height="600"
-      frameBorder="0"
-      allow="clipboard-read; clipboard-write"
-      style={{
-        borderRadius: '12px',
-        border: '1px solid #3f3f46'
-      }}
-      title="Spritz AI Agent"
-    />
+    <div className="flex flex-col h-[600px] border border-zinc-700 rounded-xl bg-zinc-950">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+        {messages.length === 0 && (
+          <div className="text-center text-zinc-400 mt-10">
+            <p>Start a conversation with ${agent.name}</p>
+          </div>
+        )}
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={\`max-w-[80%] px-4 py-3 rounded-xl \${msg.role === 'user' 
+              ? 'bg-blue-500 text-white self-end' 
+              : 'bg-zinc-800 text-white self-start'}\`}
+          >
+            {msg.content}
+          </div>
+        ))}
+        {loading && (
+          <div className="text-zinc-400 self-start">
+            Thinking...
+          </div>
+        )}
+      </div>
+      <div className="p-4 border-t border-zinc-700 flex gap-2">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          placeholder="Type your message..."
+          className="flex-1 px-4 py-3 rounded-lg border border-zinc-700 bg-zinc-900 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+        />
+        <button
+          onClick={sendMessage}
+          disabled={loading || !input.trim()}
+          className="px-6 py-3 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Send
+        </button>
+      </div>
+    </div>
   );
 }`;
                                                                         await navigator.clipboard.writeText(nextjsCode);
@@ -849,7 +1225,7 @@ export default function SpritzAgent() {
                                                             </button>
                                                         </div>
                                                         <p className="text-xs text-zinc-500 mt-1.5">
-                                                            Use this Next.js component (client component)
+                                                            Native Next.js component with Tailwind CSS styling
                                                         </p>
                                                     </div>
                                                 )}
