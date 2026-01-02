@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { format, addDays } from "date-fns";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { toast } from "sonner";
 
 type NewScheduledCallModalProps = {
     isOpen: boolean;
@@ -23,7 +21,7 @@ export function NewScheduledCallModal({
     const [duration, setDuration] = useState(30);
     const [isCreating, setIsCreating] = useState(false);
     const [shareUrl, setShareUrl] = useState<string | null>(null);
-    const { copy } = useCopyToClipboard();
+    const [error, setError] = useState<string | null>(null);
 
     // Set default date to tomorrow
     const tomorrow = addDays(new Date(), 1);
@@ -32,10 +30,11 @@ export function NewScheduledCallModal({
 
     const handleCreate = async () => {
         if (!title.trim() || !scheduledDate || !scheduledTime) {
-            toast.error("Please fill in all required fields");
+            setError("Please fill in all required fields");
             return;
         }
 
+        setError(null);
         setIsCreating(true);
         try {
             // Combine date and time into ISO string
@@ -64,22 +63,31 @@ export function NewScheduledCallModal({
             const baseUrl = window.location.origin;
             const url = `${baseUrl}/join/${data.inviteToken}`;
             setShareUrl(url);
-            
-            toast.success("Scheduled call created!");
         } catch (err) {
             console.error("[NewScheduledCall] Error:", err);
-            toast.error(err instanceof Error ? err.message : "Failed to create scheduled call");
+            setError(err instanceof Error ? err.message : "Failed to create scheduled call");
         } finally {
             setIsCreating(false);
         }
     };
 
-    const handleCopyUrl = () => {
+    const handleCopyUrl = async () => {
         if (shareUrl) {
-            copy(shareUrl);
-            toast.success("Link copied to clipboard!", {
-                description: "Share this link in your calendar invites",
-            });
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                // Show brief success feedback
+                const button = document.activeElement as HTMLElement;
+                const originalText = button?.textContent;
+                if (button) {
+                    button.textContent = "Copied!";
+                    setTimeout(() => {
+                        if (button) button.textContent = originalText || "Copy";
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error("Failed to copy:", err);
+                setError("Failed to copy link. Please copy manually.");
+            }
         }
     };
 
@@ -89,6 +97,7 @@ export function NewScheduledCallModal({
         setScheduledTime("");
         setDuration(30);
         setShareUrl(null);
+        setError(null);
     };
 
     if (!isOpen) return null;
@@ -136,6 +145,12 @@ export function NewScheduledCallModal({
 
                     {/* Content */}
                     <div className="p-6 space-y-4">
+                        {error && (
+                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                                <p className="text-red-400 text-sm">{error}</p>
+                            </div>
+                        )}
+                        
                         {shareUrl ? (
                             // Success state - show shareable URL
                             <motion.div
