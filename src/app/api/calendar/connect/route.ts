@@ -39,10 +39,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Generate OAuth URL with minimal required scopes
+    // - userinfo.email: Get user's email address for display
     // - calendar.freebusy: Read-only access to check availability (busy/free times)
     // - calendar.events: Create calendar events when calls are scheduled
     // Note: We do NOT request calendar.readonly as it's broader than needed
     const scopes = [
+        "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/calendar.freebusy",
         "https://www.googleapis.com/auth/calendar.events",
     ].join(" ");

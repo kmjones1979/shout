@@ -74,23 +74,29 @@ export async function GET(request: NextRequest) {
         const tokens = await tokenResponse.json();
         const { access_token, refresh_token, expires_in } = tokens;
 
-        // Get user's calendar info
-        const calendarResponse = await fetch(
-            "https://www.googleapis.com/calendar/v3/users/me/calendarList/primary",
-            {
-                headers: {
-                    Authorization: `Bearer ${access_token}`,
-                },
+        // Get user's email from Google userinfo endpoint (doesn't require calendar scopes)
+        // This works because we get basic profile info with the OAuth flow
+        let calendarEmail = "primary";
+        try {
+            const userInfoResponse = await fetch(
+                "https://www.googleapis.com/oauth2/v2/userinfo",
+                {
+                    headers: {
+                        Authorization: `Bearer ${access_token}`,
+                    },
+                }
+            );
+            if (userInfoResponse.ok) {
+                const userInfo = await userInfoResponse.json();
+                calendarEmail = userInfo.email || "primary";
             }
-        );
-
-        if (!calendarResponse.ok) {
-            throw new Error("Failed to fetch calendar info");
+        } catch (userInfoError) {
+            console.log("[Calendar] Could not fetch user info, using 'primary':", userInfoError);
         }
-
-        const calendarData = await calendarResponse.json();
-        const calendarId = calendarData.id;
-        const calendarEmail = calendarData.summary || calendarData.id;
+        
+        // Use "primary" as the calendar ID - this always refers to the user's main calendar
+        // and works with calendar.freebusy and calendar.events scopes
+        const calendarId = "primary";
 
         // Calculate token expiration
         const tokenExpiresAt = expires_in

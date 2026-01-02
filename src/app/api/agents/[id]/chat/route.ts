@@ -622,13 +622,17 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                             .eq("is_active", true);
                         
                         // Get Google Calendar connection for busy time filtering
-                        const { data: calendarConnection } = await supabase
+                        const { data: calendarConnection, error: calendarError } = await supabase
                             .from("shout_calendar_connections")
                             .select("*")
                             .eq("wallet_address", agent.owner_address)
                             .eq("provider", "google")
                             .eq("is_active", true)
-                            .single();
+                            .maybeSingle(); // Use maybeSingle() to avoid error when no connection exists
+                        
+                        if (calendarError) {
+                            console.error("[Chat] Error fetching calendar connection:", calendarError);
+                        }
                         
                         const userTimezone = windows?.[0]?.timezone || "UTC";
                         
@@ -683,6 +687,13 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                         
                         // For booking card: Filter by Google Calendar if connected
                         let slotsForBookingCard = potentialSlots;
+                        console.log("[Chat] Calendar connection check for", agent.owner_address, ":", {
+                            hasConnection: !!calendarConnection,
+                            hasAccessToken: !!calendarConnection?.access_token,
+                            calendarId: calendarConnection?.calendar_id,
+                            isActive: calendarConnection?.is_active,
+                        });
+                        
                         if (calendarConnection && calendarConnection.access_token) {
                             try {
                                 const oauth2Client = new google.auth.OAuth2(
@@ -697,6 +708,7 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                                 // Check if token needs refresh
                                 const tokenExpiry = calendarConnection.token_expires_at ? new Date(calendarConnection.token_expires_at) : null;
                                 const isExpired = tokenExpiry && tokenExpiry.getTime() < Date.now();
+                                console.log("[Chat] Token status:", { tokenExpiry, isExpired, hasRefreshToken: !!calendarConnection.refresh_token });
                                 
                                 if (isExpired && calendarConnection.refresh_token) {
                                     console.log("[Chat] Refreshing expired Google token for", agent.owner_address);
@@ -713,6 +725,7 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                                             .eq("wallet_address", agent.owner_address)
                                             .eq("provider", "google");
                                         oauth2Client.setCredentials(credentials);
+                                        console.log("[Chat] Token refreshed successfully");
                                     } catch (refreshError) {
                                         console.error("[Chat] Token refresh failed:", refreshError);
                                     }
@@ -721,23 +734,36 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                                 const calendar = google.calendar({ version: "v3", auth: oauth2Client });
                                 
                                 // Get busy times from Google Calendar (for booking card only, not AI)
+                                const calendarIdToQuery = calendarConnection.calendar_id || "primary";
+                                console.log("[Chat] Querying freebusy for calendar:", calendarIdToQuery, "from", now.toISOString(), "to", endDate.toISOString());
+                                
                                 const busyResponse = await calendar.freebusy.query({
                                     requestBody: {
                                         timeMin: now.toISOString(),
                                         timeMax: endDate.toISOString(),
-                                        items: [{ id: calendarConnection.calendar_id || "primary" }],
+                                        items: [{ id: calendarIdToQuery }],
                                     },
                                 });
                                 
-                                const busyPeriods = busyResponse.data.calendars?.[calendarConnection.calendar_id || "primary"]?.busy || [];
-                                console.log("[Chat] Found", busyPeriods.length, "busy periods from Google Calendar (for booking card only)");
+                                // Log the full response structure for debugging
+                                console.log("[Chat] Freebusy response calendars:", JSON.stringify(busyResponse.data.calendars, null, 2));
+                                
+                                const busyPeriods = busyResponse.data.calendars?.[calendarIdToQuery]?.busy || [];
+                                console.log("[Chat] Found", busyPeriods.length, "busy periods from Google Calendar");
+                                
+                                if (busyPeriods.length > 0) {
+                                    console.log("[Chat] Busy periods:", busyPeriods.map(b => ({
+                                        start: b.start,
+                                        end: b.end
+                                    })));
+                                }
                                 
                                 // Filter out slots that conflict with busy periods (for booking card only)
                                 slotsForBookingCard = potentialSlots.filter((slot) => {
                                     const slotStart = slot.start.getTime();
                                     const slotEnd = slot.end.getTime();
                                     
-                                    return !busyPeriods.some((busy) => {
+                                    const isConflict = busyPeriods.some((busy) => {
                                         const busyStart = new Date(busy.start!).getTime();
                                         const busyEnd = new Date(busy.end!).getTime();
                                         
@@ -747,6 +773,8 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                                             (slotStart <= busyStart && slotEnd >= busyEnd)
                                         );
                                     });
+                                    
+                                    return !isConflict;
                                 });
                                 
                                 console.log("[Chat] Booking card slots filtered from", potentialSlots.length, "to", slotsForBookingCard.length);
@@ -754,6 +782,8 @@ Remember: The user asked a question and the answer is in the data above. Just pr
                                 console.error("[Chat] Google Calendar error:", calendarError);
                                 // Continue with all potential slots if calendar check fails
                             }
+                        } else {
+                            console.log("[Chat] No active Google Calendar connection for", agent.owner_address);
                         }
                         
                         // Group slots for AI context (database slots only - NO Google Calendar data)
