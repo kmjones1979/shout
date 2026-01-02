@@ -116,6 +116,13 @@ export function EmojiPicker({
     const [searchQuery, setSearchQuery] = useState("");
     const [recentEmojis, setRecentEmojis] = useState<string[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [dynamicPosition, setDynamicPosition] = useState<{
+        top?: string;
+        bottom?: string;
+        left?: string;
+        right?: string;
+        transform?: string;
+    }>({});
 
     // Load recent emojis from localStorage
     useEffect(() => {
@@ -142,6 +149,70 @@ export function EmojiPicker({
         onSelect(emoji);
         onClose();
     };
+
+    // Calculate position to stay within viewport
+    useEffect(() => {
+        if (!isOpen || !containerRef.current) return;
+
+        const updatePosition = () => {
+            const picker = containerRef.current;
+            if (!picker) return;
+
+            const parent = picker.parentElement;
+            if (!parent) return;
+
+            const parentRect = parent.getBoundingClientRect();
+            const pickerRect = picker.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const padding = 8;
+
+            let newPosition: typeof dynamicPosition = {};
+
+            // Check if we should show above or below
+            const spaceAbove = parentRect.top;
+            const spaceBelow = viewportHeight - parentRect.bottom;
+            const showAbove = position === "top" || (spaceAbove >= pickerRect.height + padding || spaceBelow < spaceAbove);
+
+            // Check horizontal position - default to right-0
+            const pickerWidth = 320; // w-80 = 320px
+            const rightEdge = parentRect.right;
+            const leftEdge = parentRect.left;
+
+            // If going off right edge, align to left
+            if (rightEdge + pickerWidth > viewportWidth - padding) {
+                newPosition.right = "0";
+                newPosition.left = "auto";
+            } else {
+                newPosition.right = "0";
+                newPosition.left = "auto";
+            }
+
+            // If going off left edge, align to right
+            if (leftEdge - pickerWidth < padding) {
+                newPosition.left = "0";
+                newPosition.right = "auto";
+            }
+
+            if (showAbove) {
+                newPosition.bottom = "calc(100% + 8px)";
+            } else {
+                newPosition.top = "calc(100% + 8px)";
+            }
+
+            setDynamicPosition(newPosition);
+        };
+
+        const timeout = setTimeout(updatePosition, 10);
+        window.addEventListener("resize", updatePosition);
+        window.addEventListener("scroll", updatePosition, true);
+
+        return () => {
+            clearTimeout(timeout);
+            window.removeEventListener("resize", updatePosition);
+            window.removeEventListener("scroll", updatePosition, true);
+        };
+    }, [isOpen, position]);
 
     // Close on click outside
     useEffect(() => {
@@ -200,9 +271,8 @@ export function EmojiPicker({
                     initial={{ opacity: 0, scale: 0.95, y: position === "top" ? 10 : -10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: position === "top" ? 10 : -10 }}
-                    className={`absolute ${
-                        position === "top" ? "bottom-full mb-2" : "top-full mt-2"
-                    } right-0 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden`}
+                    className="absolute w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+                    style={dynamicPosition}
                 >
                     {/* Search */}
                     <div className="p-2 border-b border-zinc-800">
@@ -279,6 +349,83 @@ export function QuickReactionPicker({
     emojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"],
 }: QuickReactionPickerProps) {
     const containerRef = useRef<HTMLDivElement>(null);
+    const [position, setPosition] = useState<{
+        top?: string;
+        bottom?: string;
+        left?: string;
+        right?: string;
+        transform?: string;
+    }>({});
+
+    // Calculate position to stay within viewport
+    useEffect(() => {
+        if (!isOpen || !containerRef.current) return;
+
+        const updatePosition = () => {
+            const picker = containerRef.current;
+            if (!picker) return;
+
+            const parent = picker.parentElement;
+            if (!parent) return;
+
+            const parentRect = parent.getBoundingClientRect();
+            const pickerRect = picker.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const padding = 8; // Padding from edges
+
+            let newPosition: typeof position = {};
+
+            // Check if we should show above or below
+            const spaceAbove = parentRect.top;
+            const spaceBelow = viewportHeight - parentRect.bottom;
+            const showAbove = spaceAbove >= pickerRect.height + padding || spaceBelow < spaceAbove;
+
+            // Check horizontal position
+            const pickerWidth = pickerRect.width;
+            const centerX = parentRect.left + parentRect.width / 2;
+            const leftEdge = centerX - pickerWidth / 2;
+            const rightEdge = centerX + pickerWidth / 2;
+
+            let left = "50%";
+            let transform = "translateX(-50%)";
+
+            // Adjust if going off left edge
+            if (leftEdge < padding) {
+                left = `${padding - parentRect.left}px`;
+                transform = "translateX(0)";
+            }
+            // Adjust if going off right edge
+            else if (rightEdge > viewportWidth - padding) {
+                left = "auto";
+                const right = `${viewportWidth - parentRect.right - padding}px`;
+                newPosition.right = right;
+                transform = "translateX(0)";
+            }
+
+            newPosition.left = left;
+            newPosition.transform = transform;
+
+            if (showAbove) {
+                newPosition.bottom = "calc(100% + 8px)";
+            } else {
+                newPosition.top = "calc(100% + 8px)";
+            }
+
+            setPosition(newPosition);
+        };
+
+        // Update position after a small delay to ensure element is rendered
+        const timeout = setTimeout(updatePosition, 10);
+        window.addEventListener("resize", updatePosition);
+        window.addEventListener("scroll", updatePosition, true);
+
+        return () => {
+            clearTimeout(timeout);
+            window.removeEventListener("resize", updatePosition);
+            window.removeEventListener("scroll", updatePosition, true);
+        };
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -304,7 +451,8 @@ export function QuickReactionPicker({
                     initial={{ opacity: 0, scale: 0.9, y: 5 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.9, y: 5 }}
-                    className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-zinc-900 border border-zinc-700 rounded-full px-2 py-1 shadow-xl flex gap-1 z-50"
+                    className="absolute bg-zinc-900 border border-zinc-700 rounded-full px-2 py-1 shadow-xl flex gap-1 z-50"
+                    style={position}
                 >
                     {emojis.map((emoji) => (
                         <button

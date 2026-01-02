@@ -602,6 +602,137 @@ export function ChatModal({
         setShowReactionPicker(null);
     };
 
+    // Wrapper component for pixel art reaction picker with viewport-aware positioning
+    const PixelArtReactionPickerWrapper = ({
+        isOwn,
+        onReaction,
+        reactions,
+        reactionEmojis,
+    }: {
+        isOwn: boolean;
+        onReaction: (emoji: string) => void;
+        reactions: any;
+        reactionEmojis: string[];
+    }) => {
+        const pickerRef = useRef<HTMLDivElement>(null);
+        const [position, setPosition] = useState<{
+            top?: string;
+            bottom?: string;
+            left?: string;
+            right?: string;
+        }>({});
+
+        useEffect(() => {
+            if (!pickerRef.current) return;
+
+            const updatePosition = () => {
+                const picker = pickerRef.current;
+                if (!picker) return;
+
+                const parent = picker.parentElement;
+                if (!parent) return;
+
+                const parentRect = parent.getBoundingClientRect();
+                const pickerRect = picker.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                const padding = 8;
+
+                let newPosition: typeof position = {};
+
+                // Check if we should show above or below
+                const spaceAbove = parentRect.top;
+                const spaceBelow = viewportHeight - parentRect.bottom;
+                const showAbove = spaceAbove >= pickerRect.height + padding || spaceBelow < spaceAbove;
+
+                // Horizontal positioning
+                if (isOwn) {
+                    // For own messages, align to right but check bounds
+                    const rightEdge = parentRect.right;
+                    if (rightEdge - pickerRect.width < padding) {
+                        newPosition.left = "0";
+                        newPosition.right = "auto";
+                    } else {
+                        newPosition.right = "0";
+                        newPosition.left = "auto";
+                    }
+                } else {
+                    // For other messages, align to left but check bounds
+                    const leftEdge = parentRect.left;
+                    if (leftEdge + pickerRect.width > viewportWidth - padding) {
+                        newPosition.right = "0";
+                        newPosition.left = "auto";
+                    } else {
+                        newPosition.left = "0";
+                        newPosition.right = "auto";
+                    }
+                }
+
+                if (showAbove) {
+                    newPosition.bottom = "calc(100% + 4px)";
+                } else {
+                    newPosition.top = "calc(100% + 4px)";
+                }
+
+                setPosition(newPosition);
+            };
+
+            const timeout = setTimeout(updatePosition, 10);
+            window.addEventListener("resize", updatePosition);
+            window.addEventListener("scroll", updatePosition, true);
+
+            return () => {
+                clearTimeout(timeout);
+                window.removeEventListener("resize", updatePosition);
+                window.removeEventListener("scroll", updatePosition, true);
+            };
+        }, []);
+
+        return (
+            <motion.div
+                ref={pickerRef}
+                initial={{
+                    opacity: 0,
+                    scale: 0.9,
+                    y: -5,
+                }}
+                animate={{
+                    opacity: 1,
+                    scale: 1,
+                    y: 0,
+                }}
+                exit={{
+                    opacity: 0,
+                    scale: 0.9,
+                    y: -5,
+                }}
+                className="absolute bg-zinc-800 border border-zinc-700 rounded-xl p-2 shadow-xl z-10"
+                style={position}
+            >
+                <div className="flex gap-1">
+                    {reactionEmojis.map((emoji) => {
+                        const currentReaction = reactions?.find(
+                            (r: any) => r.emoji === emoji
+                        );
+                        return (
+                            <button
+                                key={emoji}
+                                onClick={() => onReaction(emoji)}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:bg-zinc-700 transition-colors ${
+                                    currentReaction?.hasReacted
+                                        ? "bg-[#FB8D22]/30"
+                                        : ""
+                                }`}
+                            >
+                                {emoji}
+                            </button>
+                        );
+                    })}
+                </div>
+            </motion.div>
+        );
+    };
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -912,73 +1043,25 @@ export function ChatModal({
                                                                     getPixelArtUrl(
                                                                         msg.content
                                                                     ) && (
-                                                                    <motion.div
-                                                                        initial={{
-                                                                            opacity: 0,
-                                                                            scale: 0.9,
-                                                                            y: -5,
-                                                                        }}
-                                                                        animate={{
-                                                                            opacity: 1,
-                                                                            scale: 1,
-                                                                            y: 0,
-                                                                        }}
-                                                                        exit={{
-                                                                            opacity: 0,
-                                                                            scale: 0.9,
-                                                                            y: -5,
-                                                                        }}
-                                                                        className={`absolute bottom-full mb-1 ${
-                                                                            isOwn
-                                                                                ? "right-0"
-                                                                                : "left-0"
-                                                                        } bg-zinc-800 border border-zinc-700 rounded-xl p-2 shadow-xl z-10`}
-                                                                    >
-                                                                        <div className="flex gap-1">
-                                                                            {REACTION_EMOJIS.map(
-                                                                                (
-                                                                                    emoji
-                                                                                ) => {
-                                                                                    const currentReaction =
-                                                                                        reactions[
-                                                                                            getPixelArtUrl(
-                                                                                                msg.content
-                                                                                            )
-                                                                                        ]?.find(
-                                                                                            (
-                                                                                                r
-                                                                                            ) =>
-                                                                                                r.emoji ===
-                                                                                                emoji
-                                                                                        );
-                                                                                    return (
-                                                                                        <button
-                                                                                            key={
-                                                                                                emoji
-                                                                                            }
-                                                                                            onClick={() =>
-                                                                                                handleReaction(
-                                                                                                    getPixelArtUrl(
-                                                                                                        msg.content
-                                                                                                    ),
-                                                                                                    emoji
-                                                                                                )
-                                                                                            }
-                                                                                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:bg-zinc-700 transition-colors ${
-                                                                                                currentReaction?.hasReacted
-                                                                                                    ? "bg-[#FB8D22]/30"
-                                                                                                    : ""
-                                                                                            }`}
-                                                                                        >
-                                                                                            {
-                                                                                                emoji
-                                                                                            }
-                                                                                        </button>
-                                                                                    );
-                                                                                }
-                                                                            )}
-                                                                        </div>
-                                                                    </motion.div>
+                                                                    <PixelArtReactionPickerWrapper
+                                                                        isOwn={isOwn}
+                                                                        onReaction={(emoji) =>
+                                                                            handleReaction(
+                                                                                getPixelArtUrl(
+                                                                                    msg.content
+                                                                                ),
+                                                                                emoji
+                                                                            )
+                                                                        }
+                                                                        reactions={
+                                                                            reactions[
+                                                                                getPixelArtUrl(
+                                                                                    msg.content
+                                                                                )
+                                                                            ]
+                                                                        }
+                                                                        reactionEmojis={REACTION_EMOJIS}
+                                                                    />
                                                                 )}
                                                             </AnimatePresence>
                                                         </div>

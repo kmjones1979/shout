@@ -116,18 +116,19 @@ export default function RoomPage({
             setFetchingUserInfo(true);
             try {
                 const res = await fetch(
-                    `/api/public/user?address=${encodeURIComponent(userWalletAddress)}`
+                    `/api/public/user?address=${encodeURIComponent(
+                        userWalletAddress
+                    )}`
                 );
                 if (res.ok) {
                     const data = await res.json();
                     if (data.user) {
                         // Determine best display name: username > display_name > ens_name
-                        const bestDisplayName =
-                            data.user.username
-                                ? `@${data.user.username}`
-                                : data.user.display_name ||
-                                  data.user.ens_name ||
-                                  null;
+                        const bestDisplayName = data.user.username
+                            ? `@${data.user.username}`
+                            : data.user.display_name ||
+                              data.user.ens_name ||
+                              null;
 
                         if (bestDisplayName) {
                             setDisplayName(bestDisplayName);
