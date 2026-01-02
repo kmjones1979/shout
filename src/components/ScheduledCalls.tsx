@@ -177,12 +177,29 @@ export function ScheduledCalls({ userAddress, onJoinCall }: ScheduledCallsProps)
         return now >= joinWindowStart && now <= endTime;
     };
 
-    const handleJoinCall = (token: string) => {
+    const handleJoinCall = async (token: string) => {
         if (onJoinCall) {
             onJoinCall(token);
-        } else {
-            // Navigate to join page
-            window.open(`https://app.spritz.chat/join/${token}`, "_blank");
+            return;
+        }
+
+        try {
+            // Create/join room for this scheduled call
+            const res = await fetch(`/api/scheduling/join/${token}`, {
+                method: "POST",
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.error || "Failed to join call");
+                return;
+            }
+
+            // Navigate directly to the room
+            window.location.href = `/room/${data.room.joinCode}`;
+        } catch (err) {
+            console.error("Error joining call:", err);
+            alert("Failed to join call. Please try again.");
         }
     };
 

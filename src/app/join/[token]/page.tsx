@@ -24,6 +24,7 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
     const [call, setCall] = useState<ScheduledCall | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [joining, setJoining] = useState(false);
     
     const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -163,13 +164,42 @@ export default function JoinPage({ params }: { params: Promise<{ token: string }
                             <p className="text-zinc-500">This call has already ended.</p>
                         ) : isNow || !isUpcoming ? (
                             <button
-                                onClick={() => {
-                                    // Navigate to call - this would integrate with your calling system
-                                    window.location.href = `/?join=${call.id}`;
+                                onClick={async () => {
+                                    if (joining) return;
+                                    
+                                    setJoining(true);
+                                    try {
+                                        // Create/join room for this scheduled call
+                                        const res = await fetch(`/api/scheduling/join/${token}`, {
+                                            method: "POST",
+                                        });
+                                        const data = await res.json();
+
+                                        if (!res.ok) {
+                                            alert(data.error || "Failed to join call");
+                                            setJoining(false);
+                                            return;
+                                        }
+
+                                        // Redirect to the room
+                                        window.location.href = `/room/${data.room.joinCode}`;
+                                    } catch (err) {
+                                        console.error("Error joining call:", err);
+                                        alert("Failed to join call. Please try again.");
+                                        setJoining(false);
+                                    }
                                 }}
-                                className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg font-semibold hover:from-orange-400 hover:to-amber-400 transition-all"
+                                disabled={joining}
+                                className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white text-lg font-semibold hover:from-orange-400 hover:to-amber-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
-                                Join Call Now
+                                {joining ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Joining...
+                                    </>
+                                ) : (
+                                    "Join Call Now"
+                                )}
                             </button>
                         ) : (
                             <div>
