@@ -93,7 +93,20 @@ export function GoLiveModal({
     // Stop camera
     const stopCamera = useCallback(() => {
         if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+            // Stop audio tracks first, then video
+            const audioTracks = mediaStreamRef.current.getAudioTracks();
+            const videoTracks = mediaStreamRef.current.getVideoTracks();
+            
+            audioTracks.forEach((track) => {
+                track.enabled = false;
+                track.stop();
+            });
+            
+            videoTracks.forEach((track) => {
+                track.enabled = false;
+                track.stop();
+            });
+            
             mediaStreamRef.current = null;
         }
         if (videoPreviewRef.current) {
@@ -160,6 +173,24 @@ export function GoLiveModal({
             console.error("[GoLive] Error collecting audio streams:", e);
         }
 
+        // AGGRESSIVE: Also check for audio tracks in video elements (some implementations attach audio to video)
+        try {
+            const videoElements = document.querySelectorAll("video");
+            videoElements.forEach((video) => {
+                const stream = video.srcObject as MediaStream;
+                if (stream) {
+                    stream.getAudioTracks().forEach((track) => {
+                        if (!trackIds.has(track.id)) {
+                            allTracks.push(track);
+                            trackIds.add(track.id);
+                        }
+                    });
+                }
+            });
+        } catch (e) {
+            console.error("[GoLive] Error collecting audio from video streams:", e);
+        }
+
         // AGGRESSIVE: Try to get all active media streams from getUserMedia
         // This might catch streams that aren't attached to DOM elements
         try {
@@ -171,7 +202,12 @@ export function GoLiveModal({
         }
 
         // Stop ALL tracks immediately with iOS-specific handling
-        allTracks.forEach((track) => {
+        // Stop audio tracks FIRST (they're often the ones that stick around)
+        const audioTracks = allTracks.filter(t => t.kind === "audio");
+        const videoTracks = allTracks.filter(t => t.kind === "video");
+        
+        // Stop audio tracks first
+        audioTracks.forEach((track) => {
             try {
                 if (track.readyState !== "ended") {
                     // iOS-specific: Set enabled to false first
@@ -186,8 +222,7 @@ export function GoLiveModal({
                     }
                     
                     console.log(
-                        "[GoLive] Stopped track:",
-                        track.kind,
+                        "[GoLive] Stopped AUDIO track:",
                         track.id,
                         track.label,
                         "readyState:",
@@ -195,7 +230,35 @@ export function GoLiveModal({
                     );
                 }
             } catch (e) {
-                console.error("[GoLive] Error stopping track:", e);
+                console.error("[GoLive] Error stopping audio track:", e);
+            }
+        });
+
+        // Then stop video tracks
+        videoTracks.forEach((track) => {
+            try {
+                if (track.readyState !== "ended") {
+                    // iOS-specific: Set enabled to false first
+                    track.enabled = false;
+                    
+                    // Stop the track
+                    track.stop();
+                    
+                    // iOS-specific: Try to close the track if available
+                    if (typeof (track as any).close === "function") {
+                        (track as any).close();
+                    }
+                    
+                    console.log(
+                        "[GoLive] Stopped VIDEO track:",
+                        track.id,
+                        track.label,
+                        "readyState:",
+                        track.readyState
+                    );
+                }
+            } catch (e) {
+                console.error("[GoLive] Error stopping video track:", e);
             }
         });
 
