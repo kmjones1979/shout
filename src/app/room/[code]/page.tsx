@@ -86,6 +86,18 @@ export default function RoomPage({
     const [copiedShareUrl, setCopiedShareUrl] = useState(false);
     const [fetchingUserInfo, setFetchingUserInfo] = useState(false);
     const [hasUserDisplayName, setHasUserDisplayName] = useState(false);
+    const [isPWA, setIsPWA] = useState(false);
+
+    // Check if running as PWA
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const standalone =
+                window.matchMedia("(display-mode: standalone)").matches ||
+                // @ts-expect-error - iOS Safari specific
+                window.navigator.standalone === true;
+            setIsPWA(standalone);
+        }
+    }, []);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const clientRef = useRef<any>(null);
@@ -1733,6 +1745,27 @@ export default function RoomPage({
                 {/* Header - fixed height */}
                 <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-zinc-800">
                     <div className="flex items-center gap-3">
+                        {isPWA && (
+                            <Link
+                                href="/"
+                                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
+                                title="Back to Dashboard"
+                            >
+                                <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15 19l-7-7 7-7"
+                                    />
+                                </svg>
+                            </Link>
+                        )}
                         <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
                         <span className="text-white font-medium text-sm truncate max-w-[150px]">
                             {room.title}

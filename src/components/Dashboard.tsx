@@ -2895,18 +2895,18 @@ function DashboardContent({
                                         <button
                                             onClick={handleSyncContacts}
                                             disabled={isSyncingContacts || isInvitesLoading || availableInvites === 0}
-                                            className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            title="Sync contacts and send invites to friends"
+                                            className="py-2 px-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title="Share invite with friends"
                                         >
                                             {isSyncingContacts ? (
                                                 <>
-                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    Syncing...
+                                                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    Sharing...
                                                 </>
                                             ) : (
                                                 <>
                                                     <svg
-                                                        className="w-5 h-5"
+                                                        className="w-4 h-4"
                                                         fill="none"
                                                         viewBox="0 0 24 24"
                                                         stroke="currentColor"
@@ -2915,10 +2915,10 @@ function DashboardContent({
                                                             strokeLinecap="round"
                                                             strokeLinejoin="round"
                                                             strokeWidth={2}
-                                                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                                                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
                                                         />
                                                     </svg>
-                                                    Sync Contacts
+                                                    Share
                                                 </>
                                             )}
                                         </button>
@@ -2926,10 +2926,10 @@ function DashboardContent({
                                     <button
                                         onClick={() => setIsAddFriendOpen(true)}
                                         disabled={!isSupabaseConfigured}
-                                        className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF5500] text-white font-medium transition-all hover:shadow-lg hover:shadow-[#FB8D22]/25 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="py-2 px-3 rounded-lg bg-gradient-to-r from-[#FF5500] to-[#FF5500] text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-[#FB8D22]/25 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <svg
-                                            className="w-5 h-5"
+                                            className="w-4 h-4"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"
