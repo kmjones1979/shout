@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { format, addDays } from "date-fns";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 type NewScheduledCallModalProps = {
     isOpen: boolean;
@@ -15,6 +16,7 @@ export function NewScheduledCallModal({
     onClose,
     userAddress,
 }: NewScheduledCallModalProps) {
+    const { trackScheduleCreated } = useAnalytics(userAddress);
     const [title, setTitle] = useState("");
     const [scheduledDate, setScheduledDate] = useState("");
     const [scheduledTime, setScheduledTime] = useState("");
@@ -58,6 +60,9 @@ export function NewScheduledCallModal({
             if (!res.ok) {
                 throw new Error(data.error || "Failed to create scheduled call");
             }
+
+            // Track schedule creation
+            trackScheduleCreated();
 
             // Generate shareable URL
             const baseUrl = window.location.origin;

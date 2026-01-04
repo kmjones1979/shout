@@ -202,6 +202,18 @@ export default function PublicLivePage() {
         if (stream && !hasTrackedViewerRef.current) {
             hasTrackedViewerRef.current = true;
             fetch(`/api/public/streams/${streamId}`, { method: "POST" }).catch(() => {});
+            
+            // Track stream view (only if user is logged in)
+            if (userAddress) {
+                fetch("/api/admin/track-analytics", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        walletAddress: userAddress,
+                        event: { type: "stream_viewed" },
+                    }),
+                }).catch(() => {});
+            }
 
             const handleBeforeUnload = () => {
                 if (hasTrackedViewerRef.current) {
@@ -218,7 +230,7 @@ export default function PublicLivePage() {
                 }
             };
         }
-    }, [stream, streamId]);
+    }, [stream, streamId, userAddress]);
 
     // Refresh viewer count and check stream status
     useEffect(() => {

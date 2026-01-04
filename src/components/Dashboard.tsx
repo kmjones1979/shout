@@ -309,6 +309,8 @@ function DashboardContent({
         syncGroupsCount,
         trackFriendAdded,
         trackFriendRemoved,
+        trackRoomCreated,
+        trackScheduleCreated,
     } = useAnalytics(userAddress);
 
     // Check if user is an admin
@@ -3200,6 +3202,8 @@ function DashboardContent({
                                                 });
                                                 const data = await res.json();
                                                 if (res.ok && data.room) {
+                                                    // Track room creation
+                                                    trackRoomCreated();
                                                     // Copy link to clipboard
                                                     navigator.clipboard.writeText(data.room.joinUrl);
                                                     // Open the room in a new tab

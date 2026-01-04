@@ -39,3 +39,4 @@ COMMENT ON COLUMN shout_user_settings.scheduling_buffer_minutes IS 'Buffer time 
 COMMENT ON COLUMN shout_user_settings.scheduling_advance_notice_hours IS 'Minimum hours of advance notice required for scheduling';
 
 
+

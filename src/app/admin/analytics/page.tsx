@@ -91,6 +91,24 @@ type AnalyticsData = {
         uniqueAgentUsers: number;
         knowledgeItemsCount: number;
         indexedKnowledgeItems: number;
+        // Streaming stats
+        streamsCreated: number;
+        streamsStarted: number;
+        streamsEnded: number;
+        totalStreamsCreated: number;
+        totalStreamsStarted: number;
+        totalStreamsEnded: number;
+        totalStreamingMinutes: number;
+        totalStreamsViewed: number;
+        // Room stats
+        roomsCreated: number;
+        totalRoomsCreated: number;
+        totalRoomsJoined: number;
+        // Scheduling stats
+        schedulesCreated: number;
+        schedulesJoined: number;
+        totalSchedulesCreated: number;
+        totalSchedulesJoined: number;
     };
     timeSeries: TimeSeriesItem[];
     topUsers: {
@@ -455,6 +473,77 @@ export default function AnalyticsPage() {
                             </div>
                             <p className="text-4xl font-bold">{data.summary.totalVideoMinutes.toLocaleString()}</p>
                         </div>
+                    </div>
+
+                    {/* Streaming Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <SummaryCard
+                            label="Streams Created"
+                            value={data.summary.streamsCreated}
+                            subtext={`(${data.summary.totalStreamsCreated.toLocaleString()} total)`}
+                            icon="📹"
+                            color="from-red-500/20 to-red-600/10"
+                        />
+                        <SummaryCard
+                            label="Streams Started"
+                            value={data.summary.streamsStarted}
+                            subtext={`(${data.summary.totalStreamsStarted.toLocaleString()} total)`}
+                            icon="🔴"
+                            color="from-orange-500/20 to-orange-600/10"
+                        />
+                        <SummaryCard
+                            label="Streams Ended"
+                            value={data.summary.streamsEnded}
+                            subtext={`(${data.summary.totalStreamsEnded.toLocaleString()} total)`}
+                            icon="⏹️"
+                            color="from-purple-500/20 to-purple-600/10"
+                        />
+                        <SummaryCard
+                            label="Streaming Minutes"
+                            value={data.summary.totalStreamingMinutes}
+                            subtext="total minutes"
+                            icon="⏱️"
+                            color="from-pink-500/20 to-pink-600/10"
+                        />
+                        <SummaryCard
+                            label="Streams Viewed"
+                            value={data.summary.totalStreamsViewed}
+                            subtext="total views"
+                            icon="👁️"
+                            color="from-cyan-500/20 to-cyan-600/10"
+                        />
+                        <SummaryCard
+                            label="Rooms Created"
+                            value={data.summary.roomsCreated}
+                            subtext={`(${data.summary.totalRoomsCreated.toLocaleString()} total)`}
+                            icon="🏠"
+                            color="from-indigo-500/20 to-indigo-600/10"
+                        />
+                    </div>
+
+                    {/* Rooms & Scheduling Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <SummaryCard
+                            label="Rooms Joined"
+                            value={data.summary.totalRoomsJoined}
+                            subtext="total joins"
+                            icon="🚪"
+                            color="from-blue-500/20 to-blue-600/10"
+                        />
+                        <SummaryCard
+                            label="Schedules Created"
+                            value={data.summary.schedulesCreated}
+                            subtext={`(${data.summary.totalSchedulesCreated.toLocaleString()} total)`}
+                            icon="📅"
+                            color="from-green-500/20 to-green-600/10"
+                        />
+                        <SummaryCard
+                            label="Schedules Joined"
+                            value={data.summary.schedulesJoined}
+                            subtext={`(${data.summary.totalSchedulesJoined.toLocaleString()} total)`}
+                            icon="✅"
+                            color="from-emerald-500/20 to-emerald-600/10"
+                        />
                     </div>
 
                     {/* Chart Tabs */}

@@ -175,6 +175,27 @@ export async function GET(request: NextRequest) {
             .gte("created_at", startDate.toISOString())
             .order("created_at", { ascending: true });
 
+        // Fetch streams in period
+        const { data: streams } = await supabase
+            .from("shout_streams")
+            .select("created_at, started_at, ended_at, status, user_address")
+            .gte("created_at", startDate.toISOString())
+            .order("created_at", { ascending: true });
+
+        // Fetch rooms in period
+        const { data: rooms } = await supabase
+            .from("shout_instant_rooms")
+            .select("created_at, host_wallet_address")
+            .gte("created_at", startDate.toISOString())
+            .order("created_at", { ascending: true });
+
+        // Fetch scheduled calls in period
+        const { data: scheduledCalls } = await supabase
+            .from("shout_scheduled_calls")
+            .select("created_at, recipient_wallet_address, scheduler_wallet_address, status")
+            .gte("created_at", startDate.toISOString())
+            .order("created_at", { ascending: true });
+
         // Calculate summary stats
         const totalUsers = allUsers?.length || 0;
         const newUsersCount = newUsers?.length || 0;
@@ -202,6 +223,36 @@ export async function GET(request: NextRequest) {
         const uniqueAgentUsers = new Set(agentChats?.map(c => c.user_address) || []).size;
         const knowledgeItemsCount = knowledgeItems?.length || 0;
         const indexedKnowledgeItems = knowledgeItems?.filter(k => k.status === "indexed").length || 0;
+
+        // Streaming stats
+        const streamsCreated = streams?.length || 0;
+        const streamsStarted = streams?.filter(s => s.status === "live" || s.status === "ended").length || 0;
+        const streamsEnded = streams?.filter(s => s.status === "ended").length || 0;
+        // Calculate total streaming minutes from ended streams
+        const totalStreamingMinutes = streams?.reduce((sum, s) => {
+            if (s.started_at && s.ended_at) {
+                const durationMs = new Date(s.ended_at).getTime() - new Date(s.started_at).getTime();
+                return sum + Math.round(durationMs / (1000 * 60));
+            }
+            return sum;
+        }, 0) || 0;
+        // Get streaming stats from user analytics columns
+        const totalStreamsCreated = allUsers?.reduce((sum, u) => sum + (u.streams_created || 0), 0) || 0;
+        const totalStreamsStarted = allUsers?.reduce((sum, u) => sum + (u.streams_started || 0), 0) || 0;
+        const totalStreamsEnded = allUsers?.reduce((sum, u) => sum + (u.streams_ended || 0), 0) || 0;
+        const totalStreamingMinutesAll = allUsers?.reduce((sum, u) => sum + (u.streaming_minutes || 0), 0) || 0;
+        const totalStreamsViewed = allUsers?.reduce((sum, u) => sum + (u.streams_viewed || 0), 0) || 0;
+
+        // Room stats
+        const roomsCreated = rooms?.length || 0;
+        const totalRoomsCreated = allUsers?.reduce((sum, u) => sum + (u.rooms_created || 0), 0) || 0;
+        const totalRoomsJoined = allUsers?.reduce((sum, u) => sum + (u.rooms_joined || 0), 0) || 0;
+
+        // Scheduling stats
+        const schedulesCreated = scheduledCalls?.length || 0;
+        const schedulesJoined = scheduledCalls?.filter(s => s.status === "completed").length || 0;
+        const totalSchedulesCreated = allUsers?.reduce((sum, u) => sum + (u.schedules_created || 0), 0) || 0;
+        const totalSchedulesJoined = allUsers?.reduce((sum, u) => sum + (u.schedules_joined || 0), 0) || 0;
 
         // Generate time series data
         const timeSeriesData = generateTimeSeries(
@@ -306,6 +357,24 @@ export async function GET(request: NextRequest) {
                 uniqueAgentUsers,
                 knowledgeItemsCount,
                 indexedKnowledgeItems,
+                // Streaming stats
+                streamsCreated,
+                streamsStarted,
+                streamsEnded,
+                totalStreamsCreated,
+                totalStreamsStarted,
+                totalStreamsEnded,
+                totalStreamingMinutes: totalStreamingMinutesAll,
+                totalStreamsViewed,
+                // Room stats
+                roomsCreated,
+                totalRoomsCreated,
+                totalRoomsJoined,
+                // Scheduling stats
+                schedulesCreated,
+                schedulesJoined,
+                totalSchedulesCreated,
+                totalSchedulesJoined,
             },
             timeSeries: timeSeriesData,
             topUsers: {

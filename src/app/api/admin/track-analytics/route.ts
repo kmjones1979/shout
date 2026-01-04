@@ -17,7 +17,17 @@ type AnalyticsEvent =
     | { type: "group_joined" }
     | { type: "group_left" }
     | { type: "sync_friends"; count: number }
-    | { type: "sync_groups"; count: number };
+    | { type: "sync_groups"; count: number }
+    | { type: "stream_created" }
+    | { type: "stream_started" }
+    | { type: "stream_ended"; durationMinutes: number }
+    | { type: "stream_viewed"; durationMinutes?: number }
+    | { type: "room_created" }
+    | { type: "room_joined" }
+    | { type: "schedule_created" }
+    | { type: "schedule_joined" }
+    | { type: "channel_joined" }
+    | { type: "channel_left" };
 
 // POST: Track analytics event
 export async function POST(request: NextRequest) {
@@ -144,6 +154,100 @@ export async function POST(request: NextRequest) {
                     .from("shout_users")
                     .update({ groups_count: event.count, updated_at: new Date().toISOString() })
                     .eq("wallet_address", normalizedAddress);
+                break;
+                
+            case "stream_created":
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "streams_created",
+                    p_amount: 1,
+                });
+                break;
+                
+            case "stream_started":
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "streams_started",
+                    p_amount: 1,
+                });
+                break;
+                
+            case "stream_ended":
+                // Update both stream count and total streaming minutes
+                await supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "streams_ended",
+                    p_amount: 1,
+                });
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "streaming_minutes",
+                    p_amount: Math.round(event.durationMinutes),
+                });
+                break;
+                
+            case "stream_viewed":
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "streams_viewed",
+                    p_amount: 1,
+                });
+                // Optionally track viewing minutes if provided
+                if (event.durationMinutes) {
+                    await supabase.rpc("increment_user_stat", {
+                        p_address: normalizedAddress,
+                        p_column: "stream_viewing_minutes",
+                        p_amount: Math.round(event.durationMinutes),
+                    });
+                }
+                break;
+                
+            case "room_created":
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "rooms_created",
+                    p_amount: 1,
+                });
+                break;
+                
+            case "room_joined":
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "rooms_joined",
+                    p_amount: 1,
+                });
+                break;
+                
+            case "schedule_created":
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "schedules_created",
+                    p_amount: 1,
+                });
+                break;
+                
+            case "schedule_joined":
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "schedules_joined",
+                    p_amount: 1,
+                });
+                break;
+                
+            case "channel_joined":
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "channels_joined",
+                    p_amount: 1,
+                });
+                break;
+                
+            case "channel_left":
+                updateQuery = supabase.rpc("increment_user_stat", {
+                    p_address: normalizedAddress,
+                    p_column: "channels_joined",
+                    p_amount: -1,
+                });
                 break;
                 
             default:

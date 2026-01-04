@@ -11,7 +11,17 @@ type AnalyticsEvent =
     | { type: "group_joined" }
     | { type: "group_left" }
     | { type: "sync_friends"; count: number }
-    | { type: "sync_groups"; count: number };
+    | { type: "sync_groups"; count: number }
+    | { type: "stream_created" }
+    | { type: "stream_started" }
+    | { type: "stream_ended"; durationMinutes: number }
+    | { type: "stream_viewed"; durationMinutes?: number }
+    | { type: "room_created" }
+    | { type: "room_joined" }
+    | { type: "schedule_created" }
+    | { type: "schedule_joined" }
+    | { type: "channel_joined" }
+    | { type: "channel_left" };
 
 export function useAnalytics(walletAddress: string | null) {
     const pendingEvents = useRef<AnalyticsEvent[]>([]);
@@ -86,6 +96,46 @@ export function useAnalytics(walletAddress: string | null) {
         trackEvent({ type: "sync_groups", count });
     }, [trackEvent]);
 
+    const trackStreamCreated = useCallback(() => {
+        trackEvent({ type: "stream_created" });
+    }, [trackEvent]);
+
+    const trackStreamStarted = useCallback(() => {
+        trackEvent({ type: "stream_started" });
+    }, [trackEvent]);
+
+    const trackStreamEnded = useCallback((durationMinutes: number) => {
+        trackEvent({ type: "stream_ended", durationMinutes });
+    }, [trackEvent]);
+
+    const trackStreamViewed = useCallback((durationMinutes?: number) => {
+        trackEvent({ type: "stream_viewed", durationMinutes });
+    }, [trackEvent]);
+
+    const trackRoomCreated = useCallback(() => {
+        trackEvent({ type: "room_created" });
+    }, [trackEvent]);
+
+    const trackRoomJoined = useCallback(() => {
+        trackEvent({ type: "room_joined" });
+    }, [trackEvent]);
+
+    const trackScheduleCreated = useCallback(() => {
+        trackEvent({ type: "schedule_created" });
+    }, [trackEvent]);
+
+    const trackScheduleJoined = useCallback(() => {
+        trackEvent({ type: "schedule_joined" });
+    }, [trackEvent]);
+
+    const trackChannelJoined = useCallback(() => {
+        trackEvent({ type: "channel_joined" });
+    }, [trackEvent]);
+
+    const trackChannelLeft = useCallback(() => {
+        trackEvent({ type: "channel_left" });
+    }, [trackEvent]);
+
     return {
         trackEvent,
         trackMessageSent,
@@ -97,6 +147,16 @@ export function useAnalytics(walletAddress: string | null) {
         trackGroupLeft,
         syncFriendsCount,
         syncGroupsCount,
+        trackStreamCreated,
+        trackStreamStarted,
+        trackStreamEnded,
+        trackStreamViewed,
+        trackRoomCreated,
+        trackRoomJoined,
+        trackScheduleCreated,
+        trackScheduleJoined,
+        trackChannelJoined,
+        trackChannelLeft,
     };
 }
 

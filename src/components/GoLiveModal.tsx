@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Broadcast from "@livepeer/react/broadcast";
 import type { Stream } from "@/app/api/streams/route";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 type GoLiveModalProps = {
     isOpen: boolean;
@@ -29,10 +30,12 @@ export function GoLiveModal({
     onGoLive,
     onEndStream,
 }: GoLiveModalProps) {
+    const { trackStreamCreated, trackStreamStarted, trackStreamEnded } = useAnalytics(userAddress);
     const videoPreviewRef = useRef<HTMLVideoElement>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
     const broadcastKeyRef = useRef(0); // Key to force Broadcast remount
     const isCleaningUpRef = useRef(false); // Track if cleanup is in progress
+    const streamStartTimeRef = useRef<number | null>(null); // Track when stream started for duration
 
     const [title, setTitle] = useState("");
     const [status, setStatus] = useState<StreamStatus>("preview");
@@ -299,11 +302,15 @@ export function GoLiveModal({
 
             // Create stream if we don't have one
             let stream = currentStream;
+            let isNewStream = false;
             if (!stream) {
                 stream = await onCreateStream(title || "Live Stream");
                 if (!stream) {
                     throw new Error("Failed to create stream");
                 }
+                isNewStream = true;
+                // Track stream creation
+                trackStreamCreated();
             }
 
             // Get the WebRTC ingest URL - use stream_key (NOT stream_id!)
@@ -330,6 +337,10 @@ export function GoLiveModal({
             // Mark as going live in the database
             await onGoLive(stream.id);
             setStatus("live");
+            
+            // Track stream started and record start time for duration calculation
+            trackStreamStarted();
+            streamStartTimeRef.current = Date.now();
         } catch (e) {
             console.error("[GoLive] Error:", e);
             setError(
@@ -379,8 +390,17 @@ export function GoLiveModal({
                 await new Promise((resolve) => setTimeout(resolve, 1500));
                 stopAllMediaTracks();
 
+                // Calculate stream duration
+                const durationMinutes = streamStartTimeRef.current 
+                    ? (Date.now() - streamStartTimeRef.current) / (1000 * 60)
+                    : duration / 60; // Fallback to duration state if start time not available
+                
                 // End the stream in the database
                 await onEndStream(currentStream.id);
+                
+                // Track stream ended with duration
+                trackStreamEnded(durationMinutes);
+                streamStartTimeRef.current = null;
 
                 setStatus("preview");
                 setDuration(0);
