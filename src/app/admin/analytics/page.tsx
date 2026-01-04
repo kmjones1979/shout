@@ -359,192 +359,225 @@ export default function AnalyticsPage() {
 
             {/* Analytics Content */}
             {data && (
-                <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-                    {/* Summary Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                        <SummaryCard
-                            label="Total Users"
-                            value={data.summary.totalUsers}
-                            icon="👥"
-                            color="from-blue-500/20 to-blue-600/10"
-                        />
-                        <SummaryCard
-                            label="New Users"
-                            value={data.summary.newUsersCount}
-                            subtext={`in ${selectedPeriod}`}
-                            icon="✨"
-                            color="from-green-500/20 to-green-600/10"
-                        />
-                        <SummaryCard
-                            label="Active Users"
-                            value={data.summary.activeUsers}
-                            subtext={`in ${selectedPeriod}`}
-                            icon="🔥"
-                            color="from-orange-500/20 to-orange-600/10"
-                        />
-                        <SummaryCard
-                            label="Messages"
-                            value={data.summary.messagesInPeriod}
-                            subtext={`(${data.summary.totalMessages.toLocaleString()} total)`}
-                            icon="💬"
-                            color="from-purple-500/20 to-purple-600/10"
-                        />
-                        <SummaryCard
-                            label="Points Awarded"
-                            value={data.summary.pointsInPeriod}
-                            subtext={`(${data.summary.totalPoints.toLocaleString()} total)`}
-                            icon="⭐"
-                            color="from-yellow-500/20 to-yellow-600/10"
-                        />
-                        <SummaryCard
-                            label="Friendships"
-                            value={data.summary.acceptedFriendships}
-                            subtext={`of ${data.summary.friendRequestsCount} requests`}
-                            icon="🤝"
-                            color="from-pink-500/20 to-pink-600/10"
-                        />
-                        <SummaryCard
-                            label="Invites Used"
-                            value={data.summary.invitesUsed}
-                            subtext={`in ${selectedPeriod}`}
-                            icon="🎟️"
-                            color="from-teal-500/20 to-teal-600/10"
-                        />
-                    </div>
-
-                    {/* AI Agents Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        <SummaryCard
-                            label="Total Agents"
-                            value={data.summary.totalAgents}
-                            icon="🤖"
-                            color="from-purple-500/20 to-purple-600/10"
-                        />
-                        <SummaryCard
-                            label="New Agents"
-                            value={data.summary.newAgentsCount}
-                            subtext={`in ${selectedPeriod}`}
-                            icon="✨"
-                            color="from-indigo-500/20 to-indigo-600/10"
-                        />
-                        <SummaryCard
-                            label="Agent Messages"
-                            value={data.summary.agentMessagesInPeriod}
-                            subtext={`(${data.summary.totalAgentMessages.toLocaleString()} total)`}
-                            icon="💬"
-                            color="from-cyan-500/20 to-cyan-600/10"
-                        />
-                        <SummaryCard
-                            label="Unique Users"
-                            value={data.summary.uniqueAgentUsers}
-                            subtext="using agents"
-                            icon="👤"
-                            color="from-emerald-500/20 to-emerald-600/10"
-                        />
-                        <SummaryCard
-                            label="Knowledge Items"
-                            value={data.summary.knowledgeItemsCount}
-                            subtext={`${data.summary.indexedKnowledgeItems} indexed`}
-                            icon="📚"
-                            color="from-amber-500/20 to-amber-600/10"
-                        />
-                    </div>
-
-                    {/* Call Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-zinc-900/50 rounded-2xl p-6 border border-zinc-800">
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className="text-2xl">📞</span>
-                                <h3 className="text-lg font-semibold text-zinc-300">Total Calls</h3>
-                            </div>
-                            <p className="text-4xl font-bold">{data.summary.totalCalls.toLocaleString()}</p>
+                <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
+                    {/* Overview Section - Key Metrics */}
+                    <section>
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <span>📊</span>
+                            Overview
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                            <SummaryCard
+                                label="Total Users"
+                                value={data.summary.totalUsers}
+                                icon="👥"
+                                color="from-blue-500/20 to-blue-600/10"
+                            />
+                            <SummaryCard
+                                label="New Users"
+                                value={data.summary.newUsersCount}
+                                subtext={`in ${selectedPeriod}`}
+                                icon="✨"
+                                color="from-green-500/20 to-green-600/10"
+                            />
+                            <SummaryCard
+                                label="Active Users"
+                                value={data.summary.activeUsers}
+                                subtext={`in ${selectedPeriod}`}
+                                icon="🔥"
+                                color="from-orange-500/20 to-orange-600/10"
+                            />
+                            <SummaryCard
+                                label="Messages"
+                                value={data.summary.messagesInPeriod}
+                                subtext={`(${data.summary.totalMessages.toLocaleString()} total)`}
+                                icon="💬"
+                                color="from-purple-500/20 to-purple-600/10"
+                            />
+                            <SummaryCard
+                                label="Points Awarded"
+                                value={data.summary.pointsInPeriod}
+                                subtext={`(${data.summary.totalPoints.toLocaleString()} total)`}
+                                icon="⭐"
+                                color="from-yellow-500/20 to-yellow-600/10"
+                            />
+                            <SummaryCard
+                                label="Friendships"
+                                value={data.summary.acceptedFriendships}
+                                subtext={`of ${data.summary.friendRequestsCount} requests`}
+                                icon="🤝"
+                                color="from-pink-500/20 to-pink-600/10"
+                            />
+                            <SummaryCard
+                                label="Invites Used"
+                                value={data.summary.invitesUsed}
+                                subtext={`in ${selectedPeriod}`}
+                                icon="🎟️"
+                                color="from-teal-500/20 to-teal-600/10"
+                            />
                         </div>
-                        <div className="bg-zinc-900/50 rounded-2xl p-6 border border-zinc-800">
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className="text-2xl">🎤</span>
-                                <h3 className="text-lg font-semibold text-zinc-300">Voice Minutes</h3>
-                            </div>
-                            <p className="text-4xl font-bold">{data.summary.totalVoiceMinutes.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-zinc-900/50 rounded-2xl p-6 border border-zinc-800">
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className="text-2xl">🎥</span>
-                                <h3 className="text-lg font-semibold text-zinc-300">Video Minutes</h3>
-                            </div>
-                            <p className="text-4xl font-bold">{data.summary.totalVideoMinutes.toLocaleString()}</p>
-                        </div>
-                    </div>
+                    </section>
 
-                    {/* Streaming Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                        <SummaryCard
-                            label="Streams Created"
-                            value={data.summary.streamsCreated}
-                            subtext={`(${data.summary.totalStreamsCreated.toLocaleString()} total)`}
-                            icon="📹"
-                            color="from-red-500/20 to-red-600/10"
-                        />
-                        <SummaryCard
-                            label="Streams Started"
-                            value={data.summary.streamsStarted}
-                            subtext={`(${data.summary.totalStreamsStarted.toLocaleString()} total)`}
-                            icon="🔴"
-                            color="from-orange-500/20 to-orange-600/10"
-                        />
-                        <SummaryCard
-                            label="Streams Ended"
-                            value={data.summary.streamsEnded}
-                            subtext={`(${data.summary.totalStreamsEnded.toLocaleString()} total)`}
-                            icon="⏹️"
-                            color="from-purple-500/20 to-purple-600/10"
-                        />
-                        <SummaryCard
-                            label="Streaming Minutes"
-                            value={data.summary.totalStreamingMinutes}
-                            subtext="total minutes"
-                            icon="⏱️"
-                            color="from-pink-500/20 to-pink-600/10"
-                        />
-                        <SummaryCard
-                            label="Streams Viewed"
-                            value={data.summary.totalStreamsViewed}
-                            subtext="total views"
-                            icon="👁️"
-                            color="from-cyan-500/20 to-cyan-600/10"
-                        />
-                        <SummaryCard
-                            label="Rooms Created"
-                            value={data.summary.roomsCreated}
-                            subtext={`(${data.summary.totalRoomsCreated.toLocaleString()} total)`}
-                            icon="🏠"
-                            color="from-indigo-500/20 to-indigo-600/10"
-                        />
-                    </div>
+                    {/* Communication Section - Calls & Streaming */}
+                    <section>
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <span>📞</span>
+                            Communication
+                        </h2>
+                        <div className="space-y-4">
+                            {/* Video & Voice Calls */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">Video & Voice Calls</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-zinc-900/50 rounded-2xl p-6 border border-zinc-800">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="text-2xl">📞</span>
+                                            <h3 className="text-lg font-semibold text-zinc-300">Total Calls</h3>
+                                        </div>
+                                        <p className="text-4xl font-bold">{data.summary.totalCalls.toLocaleString()}</p>
+                                    </div>
+                                    <div className="bg-zinc-900/50 rounded-2xl p-6 border border-zinc-800">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="text-2xl">🎤</span>
+                                            <h3 className="text-lg font-semibold text-zinc-300">Voice Minutes</h3>
+                                        </div>
+                                        <p className="text-4xl font-bold">{data.summary.totalVoiceMinutes.toLocaleString()}</p>
+                                    </div>
+                                    <div className="bg-zinc-900/50 rounded-2xl p-6 border border-zinc-800">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="text-2xl">🎥</span>
+                                            <h3 className="text-lg font-semibold text-zinc-300">Video Minutes</h3>
+                                        </div>
+                                        <p className="text-4xl font-bold">{data.summary.totalVideoMinutes.toLocaleString()}</p>
+                                    </div>
+                                </div>
+                            </div>
 
-                    {/* Rooms & Scheduling Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <SummaryCard
-                            label="Rooms Joined"
-                            value={data.summary.totalRoomsJoined}
-                            subtext="total joins"
-                            icon="🚪"
-                            color="from-blue-500/20 to-blue-600/10"
-                        />
-                        <SummaryCard
-                            label="Schedules Created"
-                            value={data.summary.schedulesCreated}
-                            subtext={`(${data.summary.totalSchedulesCreated.toLocaleString()} total)`}
-                            icon="📅"
-                            color="from-green-500/20 to-green-600/10"
-                        />
-                        <SummaryCard
-                            label="Schedules Joined"
-                            value={data.summary.schedulesJoined}
-                            subtext={`(${data.summary.totalSchedulesJoined.toLocaleString()} total)`}
-                            icon="✅"
-                            color="from-emerald-500/20 to-emerald-600/10"
-                        />
-                    </div>
+                            {/* Live Streaming */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">Live Streaming</h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                    <SummaryCard
+                                        label="Streams Created"
+                                        value={data.summary.streamsCreated}
+                                        subtext={`(${data.summary.totalStreamsCreated.toLocaleString()} total)`}
+                                        icon="📹"
+                                        color="from-red-500/20 to-red-600/10"
+                                    />
+                                    <SummaryCard
+                                        label="Streams Started"
+                                        value={data.summary.streamsStarted}
+                                        subtext={`(${data.summary.totalStreamsStarted.toLocaleString()} total)`}
+                                        icon="🔴"
+                                        color="from-orange-500/20 to-orange-600/10"
+                                    />
+                                    <SummaryCard
+                                        label="Streams Ended"
+                                        value={data.summary.streamsEnded}
+                                        subtext={`(${data.summary.totalStreamsEnded.toLocaleString()} total)`}
+                                        icon="⏹️"
+                                        color="from-purple-500/20 to-purple-600/10"
+                                    />
+                                    <SummaryCard
+                                        label="Streaming Minutes"
+                                        value={data.summary.totalStreamingMinutes}
+                                        subtext="total minutes"
+                                        icon="⏱️"
+                                        color="from-pink-500/20 to-pink-600/10"
+                                    />
+                                    <SummaryCard
+                                        label="Streams Viewed"
+                                        value={data.summary.totalStreamsViewed}
+                                        subtext="total views"
+                                        icon="👁️"
+                                        color="from-cyan-500/20 to-cyan-600/10"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Collaboration Section - Rooms & Scheduling */}
+                    <section>
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <span>🤝</span>
+                            Collaboration
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            <SummaryCard
+                                label="Rooms Created"
+                                value={data.summary.roomsCreated}
+                                subtext={`(${data.summary.totalRoomsCreated.toLocaleString()} total)`}
+                                icon="🏠"
+                                color="from-indigo-500/20 to-indigo-600/10"
+                            />
+                            <SummaryCard
+                                label="Rooms Joined"
+                                value={data.summary.totalRoomsJoined}
+                                subtext="total joins"
+                                icon="🚪"
+                                color="from-blue-500/20 to-blue-600/10"
+                            />
+                            <SummaryCard
+                                label="Schedules Created"
+                                value={data.summary.schedulesCreated}
+                                subtext={`(${data.summary.totalSchedulesCreated.toLocaleString()} total)`}
+                                icon="📅"
+                                color="from-green-500/20 to-green-600/10"
+                            />
+                            <SummaryCard
+                                label="Schedules Joined"
+                                value={data.summary.schedulesJoined}
+                                subtext={`(${data.summary.totalSchedulesJoined.toLocaleString()} total)`}
+                                icon="✅"
+                                color="from-emerald-500/20 to-emerald-600/10"
+                            />
+                        </div>
+                    </section>
+
+                    {/* AI Agents Section */}
+                    <section>
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                            <span>🤖</span>
+                            AI Agents
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <SummaryCard
+                                label="Total Agents"
+                                value={data.summary.totalAgents}
+                                icon="🤖"
+                                color="from-purple-500/20 to-purple-600/10"
+                            />
+                            <SummaryCard
+                                label="New Agents"
+                                value={data.summary.newAgentsCount}
+                                subtext={`in ${selectedPeriod}`}
+                                icon="✨"
+                                color="from-indigo-500/20 to-indigo-600/10"
+                            />
+                            <SummaryCard
+                                label="Agent Messages"
+                                value={data.summary.agentMessagesInPeriod}
+                                subtext={`(${data.summary.totalAgentMessages.toLocaleString()} total)`}
+                                icon="💬"
+                                color="from-cyan-500/20 to-cyan-600/10"
+                            />
+                            <SummaryCard
+                                label="Unique Users"
+                                value={data.summary.uniqueAgentUsers}
+                                subtext="using agents"
+                                icon="👤"
+                                color="from-emerald-500/20 to-emerald-600/10"
+                            />
+                            <SummaryCard
+                                label="Knowledge Items"
+                                value={data.summary.knowledgeItemsCount}
+                                subtext={`${data.summary.indexedKnowledgeItems} indexed`}
+                                icon="📚"
+                                color="from-amber-500/20 to-amber-600/10"
+                            />
+                        </div>
+                    </section>
 
                     {/* Chart Tabs */}
                     <div className="flex gap-2 mb-4">
